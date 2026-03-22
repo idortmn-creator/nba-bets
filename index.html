@@ -435,7 +435,7 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
          sendEmailVerification, sendPasswordResetEmail, onAuthStateChanged, signOut as fbSignOut,
          updateProfile } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query,
-         where, getDocs, arrayUnion, serverTimestamp, onSnapshot }
+         where, getDocs, arrayUnion, serverTimestamp, onSnapshot, deleteField }
   from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
 // Mark Firebase as ready
