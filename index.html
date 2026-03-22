@@ -990,8 +990,7 @@ function renderBetForm(){
     }
   } // end else bonusLocked
   } // end if bonuses.length
-  const siStr=typeof si==='string'?`'${si}'`:si;
-  html+=`<div style="margin-top:16px;display:flex;gap:9px;"><button class="btn btn-primary" style="width:auto" onclick="saveBet(${siStr})">💾 שמור הימורים</button><button class="btn btn-secondary btn-sm" onclick="CBD={};document.querySelectorAll('.bet-opt,.team-btn,.bonus-opt').forEach(b=>b.classList.remove('sel-home','sel-away','selected','sel-bonus'))">🔄 נקה</button></div>`;
+  html+=`<div style="margin-top:16px;display:flex;gap:9px;"><button class="btn btn-primary" style="width:auto" onclick="saveBet(this.dataset.si)" data-si="${si}">💾 שמור הימורים</button><button class="btn btn-secondary btn-sm" onclick="CBD={};document.querySelectorAll('.bet-opt,.team-btn,.bonus-opt').forEach(b=>b.classList.remove('sel-home','sel-away','selected','sel-bonus'))">🔄 נקה</button></div>`;
   content.innerHTML=html;
   // Load existing
   const existing=((currentLeagueData?.bets||{})[currentUser.uid]||{})['stage'+si]||{};
@@ -1136,8 +1135,7 @@ function renderBonusAdminList(si){
       <button class="btn-ghost" style="margin-top:8px;font-size:0.78rem" onclick="addBonusAnswer(${typeof si==='string'?'\''+ si +'\''  :si},${i})">➕ הוסף תשובה</button>
     </div>`;
   }).join('');
-  const siB=typeof si==='string'?`'${si}'`:si;
-  list.insertAdjacentHTML('beforeend',`<button class="btn btn-primary" style="margin-top:10px" onclick="saveBonusBets(${siB})">💾 שמור הימורי בונוס</button>`);
+  list.insertAdjacentHTML('beforeend',`<button class="btn btn-primary" style="margin-top:10px" onclick="saveBonusBets(this.dataset.si)" data-si="${si}">💾 שמור הימורי בונוס</button>`);
 }
 
 function addBonusBet(){
@@ -1214,8 +1212,7 @@ function renderResultForm(){
         </select></div>`;
     }
   }
-  const siStrR=typeof si==='string'?`'${si}'`:si;
-  html+=`<button class="btn btn-secondary btn-sm" onclick="saveResults(${siStrR})">💾 שמור תוצאות</button>`;
+  html+=`<button class="btn btn-secondary btn-sm" onclick="saveResults(this.dataset.si)" data-si="${si}">💾 שמור תוצאות</button>`;
   content.innerHTML=html;
 }
 
