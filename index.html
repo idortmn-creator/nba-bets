@@ -481,14 +481,22 @@ function isBonusLocked(){return (getGlobal('stageLocked',[]))[0]||false;}
 // Get auto-computed teams for 0b finals based on stage0 results
 function getPlayinFinalTeams(conf){
   const r0=(getGlobal('results',{}))['stage0']||{};
-  const t0=(getGlobal('teams',{}))['stage0']||{};
-  // loser of 7v8
+  console.log('DEBUG teams:',JSON.stringify(getGlobal('teams',{})));
+  console.log('DEBUG r0:',JSON.stringify(r0));
+  // Try to get teams from globalData - handle both nested and flat storage
+  const teamsGlobal=getGlobal('teams',{});
+  const t0=teamsGlobal['stage0']||teamsGlobal||{};
   const k78=conf==='east'?'e78':'w78';
   const k910=conf==='east'?'e910':'w910';
-  const home78=t0[k78]?.home||'', away78=t0[k78]?.away||'';
+  // Get team names - try nested first, then flat
+  const match78=t0[k78]||{};
+  const home78=match78.home||'', away78=match78.away||'';
   const winner78=(r0[k78]||'').toLowerCase().trim();
   let loser78='';
   if(winner78&&home78&&away78){
+    loser78=winner78===home78.toLowerCase().trim()?away78:home78;
+  } else if(winner78&&home78){
+    // If we have winner and one team name, try to figure out loser
     loser78=winner78===home78.toLowerCase().trim()?away78:home78;
   }
   // winner of 9v10
