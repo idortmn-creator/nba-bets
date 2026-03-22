@@ -877,10 +877,15 @@ function renderViewStageTabs(){
 function viewStage(idx){
   const idxStr=String(idx);
   document.querySelectorAll('.stage-tab').forEach((t,i)=>t.classList.toggle('active',String(STAGE_KEYS[i])===idxStr));
-  const idxNum=STAGE_KEYS.indexOf(String(idx)!==-1?idx:Number(idx));
-  const locked=(getGlobal('stageLocked',[]))[idxNum]||false;
+  // Normalize idx - could be number or string '0b'
+  const idxNorm=(idx==='0b'||idx===0||idx==='0')?idx:(typeof idx==='string'?parseInt(idx):idx);
+  const idxNum=STAGE_KEYS.indexOf(idxNorm);
+  const stageLocks=getGlobal('stageLocked',[false,false,false,false,false,false]);
+  const locked=stageLocks[idxNum]||false;
+  const currentStageIdx=STAGE_KEYS.indexOf(getGlobal('currentStage',0));
   const content=document.getElementById('betsContent');
-  if(!locked&&STAGE_KEYS.indexOf(idx)>=STAGE_KEYS.indexOf(getGlobal('currentStage',0))){content.innerHTML='<div class="card"><div class="empty-state"><div class="icon">🔒</div><p>ניתן לצפות לאחר נעילת השלב</p></div></div>';return;}
+  // Show bets only if: stage is locked OR stage has already passed
+  if(!locked){content.innerHTML='<div class="card"><div class="empty-state"><div class="icon">🔒</div><p>ניתן לצפות לאחר נעילת השלב</p></div></div>';return;}
   const result=(getGlobal('results',{}))['stage'+idx]||{},matches=STAGE_MATCHES[idx];
   const members=ld.members||[],memberInfo=ld.memberInfo||{};
   const bonuses=getBonusBets(idx),bonusResults=getBonusResults(idx);
