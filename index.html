@@ -886,6 +886,7 @@ function viewStage(idx){
   const content=document.getElementById('betsContent');
   // Show bets only if: stage is locked OR stage has already passed
   if(!locked){content.innerHTML='<div class="card"><div class="empty-state"><div class="icon">🔒</div><p>ניתן לצפות לאחר נעילת השלב</p></div></div>';return;}
+  const ld=currentLeagueData;
   const result=(getGlobal('results',{}))['stage'+idx]||{},matches=STAGE_MATCHES[idx];
   const members=ld.members||[],memberInfo=ld.memberInfo||{};
   const bonuses=getBonusBets(idx),bonusResults=getBonusResults(idx);
