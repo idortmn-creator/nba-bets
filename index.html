@@ -1,3 +1,6 @@
+
+
+
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -6,11 +9,6 @@
 <title>🏀 הימורי פלייאוף NBA 2026</title>
 <meta name="description" content="הימורי פלייאוף NBA 2026">
 <meta name="theme-color" content="#FF6B00">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="NBA Bets">
-<link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icon.png">
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;700;900&family=Oswald:wght@700&display=swap" rel="stylesheet">
 <style>
 :root{--orange:#FF6B00;--orange-light:#FF8C33;--dark:#0a0a0f;--dark2:#13131f;--dark3:#1c1c2e;--card:#1e1e30;--card2:#252540;--text:#e8e8f0;--text2:#9999bb;--gold:#FFD700;--green:#00e676;--red:#ff4444;--blue:#4fc3f7;--border:rgba(255,107,0,0.2);}
@@ -481,8 +479,6 @@ function isBonusLocked(){return (getGlobal('stageLocked',[]))[0]||false;}
 // Get auto-computed teams for 0b finals based on stage0 results
 function getPlayinFinalTeams(conf){
   const r0=(getGlobal('results',{}))['stage0']||{};
-  console.log('DEBUG teams:',JSON.stringify(getGlobal('teams',{})));
-  console.log('DEBUG r0:',JSON.stringify(r0));
   // Try to get teams from globalData - handle both nested and flat storage
   const teamsGlobal=getGlobal('teams',{});
   const t0=teamsGlobal['stage0']||teamsGlobal||{};
@@ -1378,7 +1374,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if(e.key==='Enter'&&window.doLogin) window.doLogin();
   });
 });
-if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}
+
 </script>
 </body>
 </html>
