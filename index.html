@@ -1219,10 +1219,16 @@ function renderResultForm(){
 async function saveResults(si){
   const matches=STAGE_MATCHES[si],result={};
   if(si===0){for(const m of matches){const el=document.getElementById('res_'+m.key);if(el)result[m.key]=el.value;}}
-  else{
+  else if(si==='0b'){
+    // Play-in finals: single game, winner only
     for(const m of matches){
       const el=document.getElementById('res_'+m.key);
-      if(el&&el.value){const p=el.value.split('|');result[m.key+'_winner']=p[0];result[m.key+'_result']=p[1];}
+      if(el&&el.value)result[m.key]=el.value;
+    }
+  } else{
+    for(const m of matches){
+      const el=document.getElementById('res_'+m.key);
+      if(el&&el.value){const p=el.value.split('|');result[m.key+'_winner']=p[0];if(p[1]!==undefined)result[m.key+'_result']=p[1];}
       if(m.hasMvp){const e2=document.getElementById('res_'+m.key+'_mvp');if(e2)result[m.key+'_mvp']=e2.value.trim();}
     }
     if(si===1){for(const p of PREBETS){const el=document.getElementById('res_'+p.key);if(el)result[p.key]=el.value.trim();}}
