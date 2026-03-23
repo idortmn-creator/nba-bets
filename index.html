@@ -1253,10 +1253,20 @@ function renderTeamSetupForm(){
   } else {
     for(const m of matches){
       const t=getTeams(si,m.key);
-      html+=`<div class="ts-row"><span class="ts-label">${m.label}</span>
-        <input class="ts-inp" id="ts_${m.key}_home" value="${t.home}" placeholder="ביתית...">
-        <span class="vs-badge">מול</span>
-        <input class="ts-inp" id="ts_${m.key}_away" value="${t.away}" placeholder="אורחת...">
+      const sLk=isSeriesLocked(si,m.key);
+      html+=`<div class="ts-row" style="border:1px solid ${sLk?'rgba(0,230,118,0.25)':'var(--border)'};border-radius:8px;padding:8px;margin-bottom:6px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span class="ts-label" style="margin:0">${m.label}</span>
+          <button data-si="${si}" data-mk="${m.key}" onclick="toggleSeriesLock(this.dataset.si,this.dataset.mk)"
+            style="padding:3px 10px;border-radius:6px;border:1px solid ${sLk?'var(--green)':'var(--border)'};background:${sLk?'rgba(0,230,118,0.15)':'transparent'};color:${sLk?'var(--green)':'var(--text2)'};cursor:pointer;font-size:0.75rem">
+            ${sLk?'🔒 נעול':'🔓 נעל סדרה'}
+          </button>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input class="ts-inp" id="ts_${m.key}_home" value="${t.home}" placeholder="ביתית..." style="flex:1">
+          <span class="vs-badge">מול</span>
+          <input class="ts-inp" id="ts_${m.key}_away" value="${t.away}" placeholder="אורחת..." style="flex:1">
+        </div>
       </div>`;
     }
     html+=`<button class="btn btn-secondary btn-sm" style="margin-top:9px" onclick="saveTeamSetup(this.dataset.si)" data-si="${si}">💾 שמור קבוצות</button>`;
@@ -1392,15 +1402,7 @@ function renderResultForm(){
       const lbl=t.home&&t.away?`${home} מול ${away}`:m.label;
       const allOpts=[...GAPS.map(r=>({w:home,r,l:`${home} ${r}`})),...GAPS.map(r=>({w:away,r,l:`${away} ${r}`}))];
       const curV=result[m.key+'_winner']&&result[m.key+'_result']?`${result[m.key+'_winner']}|${result[m.key+'_result']}`:'';
-      const sLocked=isSeriesLocked(si,m.key);
-      html+=`<div class="form-group" style="border:1px solid ${sLocked?'rgba(0,230,118,0.3)':'var(--border)'};border-radius:8px;padding:10px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-          <label style="margin:0">🏀 ${lbl}</label>
-          <button data-si="${si}" data-mk="${m.key}" onclick="toggleSeriesLock(this.dataset.si,this.dataset.mk)" 
-            style="padding:3px 10px;border-radius:6px;border:1px solid ${sLocked?'var(--green)':'var(--border)'};background:${sLocked?'rgba(0,230,118,0.15)':'transparent'};color:${sLocked?'var(--green)':'var(--text2)'};cursor:pointer;font-size:0.75rem">
-            ${sLocked?'🔒 נעול':'🔓 נעל סדרה'}
-          </button>
-        </div>
+      html+=`<div class="form-group"><label>🏀 ${lbl}</label>
         <select id="res_${m.key}"><option value="">בחר תוצאה...</option>${allOpts.map(o=>{const v=`${o.w}|${o.r}`;return`<option value="${v}" ${curV===v?'selected':''}>${o.l}</option>`;}).join('')}</select>
       </div>`;
       if(m.hasMvp)html+=`<div class="form-group"><label>🏅 MVP</label><input type="text" id="res_${m.key}_mvp" value="${result[m.key+'_mvp']||''}" placeholder="שם שחקן..."></div>`;
