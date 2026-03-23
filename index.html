@@ -1094,7 +1094,14 @@ function renderAdmin(){
   const link=`${location.origin}${location.pathname}?code=${ld.code}`;
   document.getElementById('adminShareLink').value=link;
   document.getElementById('adminLeagueCode').textContent=ld.code;
-  renderTeamSetupForm();renderBonusAdmin();renderResultForm();renderAutoLockList();
+  // Only rebuild forms if they're empty (first load)
+  const teamForm=document.getElementById('teamSetupForm');
+  if(!teamForm||!teamForm.innerHTML.trim())renderTeamSetupForm();
+  const bonusAdminList=document.getElementById('bonusAdminList');
+  if(!bonusAdminList||!bonusAdminList.innerHTML.trim())renderBonusAdmin();
+  const resultForm=document.getElementById('resultFormContent');
+  if(!resultForm||!resultForm.innerHTML.trim())renderResultForm();
+  renderAutoLockList();
 }
 
 // TEAM SETUP
