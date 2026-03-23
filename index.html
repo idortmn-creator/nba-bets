@@ -1188,9 +1188,11 @@ function pickPlayin(mk,teamName,si){
   document.querySelectorAll(`[id^="pb_${mk}_"]`).forEach(b=>b.classList.toggle('selected',b.textContent.trim()===teamName));
 }
 function pickSeries(mk,teamName,result,si){
+  if(si!=='0b')si=isNaN(parseInt(si))?si:parseInt(si);
   CBD[mk+'_winner']=teamName;CBD[mk+'_result']=result;
   document.querySelectorAll(`[id^="bo_${mk}_"]`).forEach(b=>b.classList.remove('sel-home','sel-away'));
-  const t=getTeams(si,mk),isHome=teamName===(t.home||'ביתית');
+  const t=getTeams(si,mk);
+  const isHome=teamName.toLowerCase().trim()===(t.home||'').toLowerCase().trim();
   const btn=document.getElementById(`bo_${mk}_${isHome?'h':'a'}_${result.replace('-','')}`);
   if(btn)btn.classList.add(isHome?'sel-home':'sel-away');
 }
@@ -1394,7 +1396,7 @@ function renderResultForm(){
       html+=`<div class="form-group" style="border:1px solid ${sLocked?'rgba(0,230,118,0.3)':'var(--border)'};border-radius:8px;padding:10px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
           <label style="margin:0">🏀 ${lbl}</label>
-          <button onclick="toggleSeriesLock(${typeof si==='string'?`'${si}'`:si},'${m.key}')" 
+          <button data-si="${si}" data-mk="${m.key}" onclick="toggleSeriesLock(this.dataset.si,this.dataset.mk)" 
             style="padding:3px 10px;border-radius:6px;border:1px solid ${sLocked?'var(--green)':'var(--border)'};background:${sLocked?'rgba(0,230,118,0.15)':'transparent'};color:${sLocked?'var(--green)':'var(--text2)'};cursor:pointer;font-size:0.75rem">
             ${sLocked?'🔒 נעול':'🔓 נעל סדרה'}
           </button>
@@ -1498,6 +1500,7 @@ async function setCurrentStage(){
   toast('✅ שלב עודכן בכל הליגות!');
 }
 async function toggleSeriesLock(si,mk){
+  if(si!=='0b')si=isNaN(parseInt(si))?si:parseInt(si);
   const key=getSeriesLockedKey(si,mk);
   const cur=getGlobal('seriesLocked',{});
   const newVal=!cur[key];
