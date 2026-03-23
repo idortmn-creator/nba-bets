@@ -486,6 +486,8 @@ const PREBETS=[{key:'champion',label:'🏆 אלוף NBA'},{key:'east_champ',labe
 
 // ── STAGE KEYS (ordered) ──
 const STAGE_KEYS=[0,'0b',1,2,3,4];
+function isSeriesLocked(si,mk){return !!(getGlobal('seriesLocked',{})[si+'_'+mk]);}
+function getSeriesLockedKey(si,mk){return si+'_'+mk;}
 // Bonus is locked when stage 0 (first playin) is locked
 function isBonusLocked(si){
   // Bonus for playin (stage0/0b) is locked with stage0
@@ -788,8 +790,60 @@ function showLeagueTab(tab){
 }
 
 // ── SCORING ──
+function getSeriesWinner(si,mk){
+  const r=(getGlobal('results',{}))['stage'+si]||{};
+  return r[mk+'_winner']||'';
+}
+
+// Auto-compute teams for a stage based on previous stage results
+function getAutoTeams(si,mk){
+  if(si===1){
+    // Stage 1: winners from playin (stage0b) - already set manually
+    return null;
+  }
+  if(si===2){
+    // Stage 2: winners from stage1 series match up
+    // e1(1v4east): winner of e1 vs winner of e4
+    // e2(2v3east): winner of e2 vs winner of e3
+    // w1(1v4west): winner of w1 vs winner of w4
+    // w2(2v3west): winner of w2 vs winner of w3
+    const map={e1:{home:'e1',away:'e4'},e2:{home:'e2',away:'e3'},w1:{home:'w1',away:'w4'},w2:{home:'w2',away:'w3'}};
+    if(map[mk]){
+      const home=getSeriesWinner(1,map[mk].home);
+      const away=getSeriesWinner(1,map[mk].away);
+      if(home||away)return{home,away};
+    }
+    return null;
+  }
+  if(si===3){
+    // Stage 3: winners from stage2
+    // east: winner of e1 vs winner of e2
+    // west: winner of w1 vs winner of w2
+    const map={east:{home:'e1',away:'e2'},west:{home:'w1',away:'w2'}};
+    if(map[mk]){
+      const home=getSeriesWinner(2,map[mk].home);
+      const away=getSeriesWinner(2,map[mk].away);
+      if(home||away)return{home,away};
+    }
+    return null;
+  }
+  if(si===4){
+    // Stage 4: east winner vs west winner
+    if(mk==='finals'){
+      const home=getSeriesWinner(3,'east');
+      const away=getSeriesWinner(3,'west');
+      if(home||away)return{home,away};
+    }
+    return null;
+  }
+  return null;
+}
+
 function getTeams(si,mk){
-  // First try globalData (new storage)
+  // First try auto-computed teams from previous stage results
+  const auto=getAutoTeams(si,mk);
+  if(auto&&(auto.home||auto.away))return auto;
+  // Then try globalData (manually set)
   const gt=getGlobal('teams',{});
   const fromGlobal=(gt['stage'+si]||{})[mk];
   if(fromGlobal&&(fromGlobal.home||fromGlobal.away))return fromGlobal;
@@ -952,6 +1006,12 @@ function viewStage(idx){
       for(const m of matches){const bv=bet[m.key]||'-';let cls='pending';if(result[m.key])cls=bv.toLowerCase()===result[m.key].toLowerCase()?'correct':'wrong';items+=`<div class="bet-item"><span class="bet-label">${teamLabel(idx,m.key,m.label)}</span><span class="bet-value ${cls}">${bv}</span></div>`;}
     } else {
       for(const m of matches){
+        const serLocked=isSeriesLocked(idx,m.key);
+        if(!serLocked){
+          // Series not locked - show grey placeholder
+          items+=`<div class="bet-item"><span class="bet-label">${teamLabel(idx,m.key,m.label)}</span><span class="bet-value" style="color:var(--border)">- טרם ננעל -</span></div>`;
+          continue;
+        }
         const bW=bet[m.key+'_winner']||'-',bR=bet[m.key+'_result']||'-';
         let wC='pending';
         const winMatch=result[m.key+'_winner']&&bW.toLowerCase()===result[m.key+'_winner'].toLowerCase();
@@ -1156,6 +1216,7 @@ async function initGlobalSettingsIfNeeded(){
     await setDoc(doc(db,'global','settings'),{
       currentStage: 0,
       stageLocked: [false,false,false,false,false,false],
+      seriesLocked: {},
       teams: {stage0:{},stage0b:{},stage1:{},stage2:{},stage3:{},stage4:{}},
       results: {stage0:null,stage0b:null,stage1:null,stage2:null,stage3:null,stage4:null},
       bonusBets: {stage0:[]},
@@ -1329,7 +1390,17 @@ function renderResultForm(){
       const lbl=t.home&&t.away?`${home} מול ${away}`:m.label;
       const allOpts=[...GAPS.map(r=>({w:home,r,l:`${home} ${r}`})),...GAPS.map(r=>({w:away,r,l:`${away} ${r}`}))];
       const curV=result[m.key+'_winner']&&result[m.key+'_result']?`${result[m.key+'_winner']}|${result[m.key+'_result']}`:'';
-      html+=`<div class="form-group"><label>🏀 ${lbl}</label><select id="res_${m.key}"><option value="">בחר תוצאה...</option>${allOpts.map(o=>{const v=`${o.w}|${o.r}`;return`<option value="${v}" ${curV===v?'selected':''}>${o.l}</option>`;}).join('')}</select></div>`;
+      const sLocked=isSeriesLocked(si,m.key);
+      html+=`<div class="form-group" style="border:1px solid ${sLocked?'rgba(0,230,118,0.3)':'var(--border)'};border-radius:8px;padding:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <label style="margin:0">🏀 ${lbl}</label>
+          <button onclick="toggleSeriesLock(${typeof si==='string'?`'${si}'`:si},'${m.key}')" 
+            style="padding:3px 10px;border-radius:6px;border:1px solid ${sLocked?'var(--green)':'var(--border)'};background:${sLocked?'rgba(0,230,118,0.15)':'transparent'};color:${sLocked?'var(--green)':'var(--text2)'};cursor:pointer;font-size:0.75rem">
+            ${sLocked?'🔒 נעול':'🔓 נעל סדרה'}
+          </button>
+        </div>
+        <select id="res_${m.key}"><option value="">בחר תוצאה...</option>${allOpts.map(o=>{const v=`${o.w}|${o.r}`;return`<option value="${v}" ${curV===v?'selected':''}>${o.l}</option>`;}).join('')}</select>
+      </div>`;
       if(m.hasMvp)html+=`<div class="form-group"><label>🏅 MVP</label><input type="text" id="res_${m.key}_mvp" value="${result[m.key+'_mvp']||''}" placeholder="שם שחקן..."></div>`;
     }
     // Pre-bets results moved to stage 4 (finals)
@@ -1426,6 +1497,15 @@ async function setCurrentStage(){
   await setDoc(doc(db,'global','settings'),updates,{merge:true});
   toast('✅ שלב עודכן בכל הליגות!');
 }
+async function toggleSeriesLock(si,mk){
+  const key=getSeriesLockedKey(si,mk);
+  const cur=getGlobal('seriesLocked',{});
+  const newVal=!cur[key];
+  await setDoc(doc(db,'global','settings'),{seriesLocked:{...cur,[key]:newVal}},{merge:true});
+  toast(newVal?'🔒 סדרה ננעלה':'🔓 סדרה נפתחה');
+}
+window.toggleSeriesLock=toggleSeriesLock;
+
 async function toggleStageLock(){
   const sv=document.getElementById('adminStageSelect').value;
   const s=sv==='0b'?'0b':parseInt(sv);
