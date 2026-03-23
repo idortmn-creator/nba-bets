@@ -129,9 +129,14 @@ header{background:linear-gradient(135deg,var(--dark2),var(--dark3));border-botto
 /* ── BET FORM ── */
 .matchup-bet-card{background:var(--dark3);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:10px;}
 .match-label{font-size:0.76rem;color:var(--text2);font-weight:700;margin-bottom:8px;}
-.bet-options{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:7px;}
-.bet-opt{padding:7px 5px;border-radius:8px;border:1.5px solid var(--border);background:transparent;color:var(--text);cursor:pointer;font-family:'Heebo',sans-serif;font-size:0.74rem;transition:all 0.15s;text-align:center;line-height:1.3;}
-.bet-opt:hover{border-color:var(--orange);background:rgba(255,107,0,0.06);}
+.bet-options{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:7px;}
+.bet-options-home{display:flex;flex-direction:column;gap:5px;}
+.bet-options-away{display:flex;flex-direction:column;gap:5px;}
+.bet-opt{padding:8px 5px;border-radius:8px;border:1.5px solid var(--border);background:transparent;color:var(--text);cursor:pointer;font-family:'Heebo',sans-serif;font-size:0.76rem;transition:all 0.15s;text-align:center;line-height:1.3;}
+.bet-opt.home-opt{border-color:rgba(79,195,247,0.3);}
+.bet-opt.away-opt{border-color:rgba(255,107,0,0.3);}
+.bet-opt.home-opt:hover{border-color:var(--blue);background:rgba(79,195,247,0.08);}
+.bet-opt.away-opt:hover{border-color:var(--orange);background:rgba(255,107,0,0.08);}
 .bet-opt.sel-home{background:rgba(79,195,247,0.18);border-color:var(--blue);color:var(--blue);font-weight:700;}
 .bet-opt.sel-away{background:rgba(255,107,0,0.18);border-color:var(--orange);color:var(--orange);font-weight:700;}
 .bet-opt.sel-bonus{background:rgba(255,215,0,0.18);border-color:var(--gold);color:var(--gold);font-weight:700;}
@@ -533,6 +538,9 @@ window.openLeague=openLeague;
 window.toggleMenu=toggleMenu;
 window.closeMenu=closeMenu;
 window.addBonusBet=addBonusBet;
+window.updateBonusQuestion=updateBonusQuestion;
+window.updateBonusPoints=updateBonusPoints;
+window.updateBonusAnswer=updateBonusAnswer;
 window.removeBonusBet=removeBonusBet;
 window.addBonusAnswer=addBonusAnswer;
 window.removeBonusAnswer=removeBonusAnswer;
@@ -958,10 +966,19 @@ function renderBetForm(){
     for(const m of matches){
       const t=getTeams(si,m.key),home=t.home||'ביתית',away=t.away||'אורחת';
       const lbl=t.home&&t.away?`${home} מול ${away}`:m.label;
-      const hOpts=GAPS.map(r=>`<button class="bet-opt" id="bo_${m.key}_h_${r.replace('-','')}" data-mk="${m.key}" data-team="${home}" data-res="${r}" data-si="${si}" onclick="pickSeries(this.dataset.mk,this.dataset.team,this.dataset.res,this.dataset.si)"><span class="opt-team">${home}</span><span class="opt-res">${r}</span></button>`).join('');
-      const aOpts=GAPS.map(r=>`<button class="bet-opt" id="bo_${m.key}_a_${r.replace('-','')}" data-mk="${m.key}" data-team="${away}" data-res="${r}" data-si="${si}" onclick="pickSeries(this.dataset.mk,this.dataset.team,this.dataset.res,this.dataset.si)"><span class="opt-team">${away}</span><span class="opt-res">${r}</span></button>`).join('');
+      const hOpts=GAPS.map(r=>`<button class="bet-opt home-opt" id="bo_${m.key}_h_${r.replace('-','')}" data-mk="${m.key}" data-team="${home}" data-res="${r}" data-si="${si}" onclick="pickSeries(this.dataset.mk,this.dataset.team,this.dataset.res,this.dataset.si)" style="width:100%"><span class="opt-res">${r}</span></button>`).join('');
+      const aOpts=GAPS.map(r=>`<button class="bet-opt away-opt" id="bo_${m.key}_a_${r.replace('-','')}" data-mk="${m.key}" data-team="${away}" data-res="${r}" data-si="${si}" onclick="pickSeries(this.dataset.mk,this.dataset.team,this.dataset.res,this.dataset.si)" style="width:100%"><span class="opt-res">${r}</span></button>`).join('');
       html+=`<div class="matchup-bet-card"><div class="match-label">🏀 ${lbl}</div>
-        <div class="bet-options">${hOpts}${aOpts}</div>
+        <div style="display:flex;gap:10px;margin-top:7px;align-items:stretch;">
+          <div style="flex:1;display:flex;flex-direction:column;gap:5px;padding:6px 8px;background:rgba(79,195,247,0.05);border-radius:8px;border:1px solid rgba(79,195,247,0.15);">
+            <div style="font-size:0.7rem;color:var(--blue);font-weight:700;text-align:center;margin-bottom:2px">${home} 🏠</div>
+            ${hOpts}
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:5px;padding:6px 8px;background:rgba(255,107,0,0.05);border-radius:8px;border:1px solid rgba(255,107,0,0.15);">
+            <div style="font-size:0.7rem;color:var(--orange);font-weight:700;text-align:center;margin-bottom:2px">${away} ✈️</div>
+            ${aOpts}
+          </div>
+        </div>
         ${m.hasMvp?`<div class="form-group" style="margin-top:9px;margin-bottom:0"><label>🏅 MVP</label><input type="text" id="mvp_${m.key}" placeholder="שם שחקן..." oninput="CBD['${m.key}_mvp']=this.value"></div>`:''}
       </div>`;
     }
@@ -1106,6 +1123,9 @@ async function saveTeamSetup(si){
 }
 
 // ── BONUS BETS ADMIN ──
+function updateBonusQuestion(si,i,val){if(!si||si==='0b'?bonusBetDraft['0b']:bonusBetDraft[parseInt(si)||si]);const key=si==='0b'?'0b':parseInt(si);if(bonusBetDraft[key]&&bonusBetDraft[key][i])bonusBetDraft[key][i].question=val;}
+function updateBonusPoints(si,i,val){const key=si==='0b'?'0b':parseInt(si);if(bonusBetDraft[key]&&bonusBetDraft[key][i])bonusBetDraft[key][i].points=parseFloat(val)||1;}
+function updateBonusAnswer(si,i,ai,val){const key=si==='0b'?'0b':parseInt(si);if(bonusBetDraft[key]&&bonusBetDraft[key][i])bonusBetDraft[key][i].answers[parseInt(ai)]=val;}
 function renderBonusAdmin(){
   const bsiRaw=document.getElementById('bonusStageSelect').value;
   const si=bsiRaw==='0b'?'0b':parseInt(bsiRaw);
@@ -1121,16 +1141,16 @@ function renderBonusAdminList(si){
   list.innerHTML=bonuses.map((b,i)=>{
     const answers=b.answers||[];
     const ansHtml=answers.map((a,ai)=>`<div class="bonus-answer-row">
-      <input type="text" value="${a}" placeholder="תשובה אפשרית..." onchange="bonusBetDraft[${si}][${i}].answers[${ai}]=this.value">
+      <input type="text" value="${a}" placeholder="תשובה אפשרית..." data-si="${si}" data-idx="${i}" data-aidx="${ai}" onchange="updateBonusAnswer(this.dataset.si,this.dataset.idx,this.dataset.aidx,this.value)">
       <button class="remove-ans" onclick="removeBonusAnswer(this.dataset.si,this.dataset.idx,this.dataset.aidx)" data-si="${si}" data-idx="${i}" data-aidx="${ai}">✕</button>
     </div>`).join('');
     return`<div class="bonus-admin-card">
       <button class="remove-btn" onclick="removeBonusBet(this.dataset.si,this.dataset.idx)" data-si="${si}" data-idx="${i}">✕ הסר</button>
       <div class="form-group" style="margin-bottom:8px"><label>שאלה</label>
-        <input type="text" value="${b.question}" placeholder="השאלה..." style="background:var(--dark);border:1.5px solid rgba(255,215,0,0.3);border-radius:7px;color:var(--text);font-family:'Heebo',sans-serif;font-size:0.84rem;padding:7px 10px;width:100%" onchange="bonusBetDraft[${si}][${i}].question=this.value">
+        <input type="text" value="${b.question}" placeholder="השאלה..." style="background:var(--dark);border:1.5px solid rgba(255,215,0,0.3);border-radius:7px;color:var(--text);font-family:'Heebo',sans-serif;font-size:0.84rem;padding:7px 10px;width:100%" data-si="${si}" data-idx="${i}" onchange="updateBonusQuestion(this.dataset.si,this.dataset.idx,this.value)">
       </div>
       <div class="form-group" style="margin-bottom:8px"><label>נקודות</label>
-        <input type="number" value="${b.points}" min="0.5" step="0.5" style="background:var(--dark);border:1.5px solid rgba(255,215,0,0.3);border-radius:7px;color:var(--text);font-family:'Heebo',sans-serif;font-size:0.84rem;padding:7px 10px;width:100px" onchange="bonusBetDraft[${si}][${i}].points=parseFloat(this.value)||1">
+        <input type="number" value="${b.points}" min="0.5" step="0.5" style="background:var(--dark);border:1.5px solid rgba(255,215,0,0.3);border-radius:7px;color:var(--text);font-family:'Heebo',sans-serif;font-size:0.84rem;padding:7px 10px;width:100px" data-si="${si}" data-idx="${i}" onchange="updateBonusPoints(this.dataset.si,this.dataset.idx,this.value)">
       </div>
       <label style="font-size:0.78rem;color:var(--text2);font-weight:600;display:block;margin-bottom:6px">תשובות אפשריות</label>
       <div class="bonus-answers">${ansHtml}</div>
