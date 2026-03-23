@@ -1031,6 +1031,7 @@ function pickBonus(bonusId,val){
 }
 
 async function saveBet(si){
+  if(si!=='0b')si=isNaN(parseInt(si))?si:parseInt(si);
   const matches=STAGE_MATCHES[si];
   for(const m of matches){if(m.hasMvp){const el=document.getElementById('mvp_'+m.key);if(el)CBD[m.key+'_mvp']=el.value.trim();}}
   if(si===1){for(const p of PREBETS){const el=document.getElementById('pre_'+p.key);if(el)CBD[p.key]=el.value.trim();}}
@@ -1091,6 +1092,7 @@ function renderTeamSetupForm(){
   form.innerHTML=html;
 }
 async function saveTeamSetup(si){
+  if(si!=='0b')si=isNaN(parseInt(si))?si:parseInt(si);
   if(si==='0b'){toast("ℹ️ הקבוצות בגמר הפליי-אין מחושבות אוטומטית מתוצאות שלב א של הפליי-אין");return;}
   // Build nested object for proper Firestore storage
   const stageTeams={};
@@ -1148,6 +1150,7 @@ function removeBonusBet(si,i){bonusBetDraft[si].splice(i,1);renderBonusAdminList
 function addBonusAnswer(si,i){bonusBetDraft[si][i].answers.push('');renderBonusAdminList(si);}
 function removeBonusAnswer(si,i,ai){bonusBetDraft[si][i].answers.splice(ai,1);renderBonusAdminList(si);}
 async function saveBonusBets(si){
+  if(si!=='0b')si=isNaN(parseInt(si))?si:parseInt(si);
   const bonuses=bonusBetDraft[si]||[];
   // collect latest values from DOM
   const list=document.querySelectorAll(`#bonusAdminList .bonus-admin-card`);
@@ -1217,6 +1220,8 @@ function renderResultForm(){
 }
 
 async function saveResults(si){
+  // Normalize si - could be string from dataset
+  if(si!=='0b')si=isNaN(parseInt(si))?si:parseInt(si);
   const matches=STAGE_MATCHES[si];
   let result={};
   if(si===0){for(const m of matches){const el=document.getElementById('res_'+m.key);if(el&&el.value)result[m.key]=el.value;}}
