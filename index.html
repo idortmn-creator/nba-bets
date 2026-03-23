@@ -949,8 +949,8 @@ function renderBetForm(){
       }
       html+=`<div class="playin-card"><div class="match-label">🏀 ${lbl}</div>
         <div class="team-btns">
-          <button class="team-btn" id="pb_${m.key}_0" onclick="pickPlayin('${m.key}',this.textContent.trim(),${typeof si==='string'?`'${si}'`:si})">${t1||'?'}</button>
-          <button class="team-btn" id="pb_${m.key}_1" onclick="pickPlayin('${m.key}',this.textContent.trim(),${typeof si==='string'?`'${si}'`:si})">${t2||'?'}</button>
+          <button class="team-btn" id="pb_${m.key}_0" data-mk="${m.key}" data-si="${si}" onclick="pickPlayin(this.dataset.mk,this.textContent.trim(),this.dataset.si)">${t1||'?'}</button>
+          <button class="team-btn" id="pb_${m.key}_1" data-mk="${m.key}" data-si="${si}" onclick="pickPlayin(this.dataset.mk,this.textContent.trim(),this.dataset.si)">${t2||'?'}</button>
         </div></div>`;
     }
   } else {
@@ -958,8 +958,8 @@ function renderBetForm(){
     for(const m of matches){
       const t=getTeams(si,m.key),home=t.home||'ביתית',away=t.away||'אורחת';
       const lbl=t.home&&t.away?`${home} מול ${away}`:m.label;
-      const hOpts=GAPS.map(r=>`<button class="bet-opt" id="bo_${m.key}_h_${r.replace('-','')}" onclick="pickSeries('${m.key}','${home}','${r}',${typeof si==='string'?`'${si}'`:si})"><span class="opt-team">${home}</span><span class="opt-res">${r}</span></button>`).join('');
-      const aOpts=GAPS.map(r=>`<button class="bet-opt" id="bo_${m.key}_a_${r.replace('-','')}" onclick="pickSeries('${m.key}','${away}','${r}',${typeof si==='string'?`'${si}'`:si})"><span class="opt-team">${away}</span><span class="opt-res">${r}</span></button>`).join('');
+      const hOpts=GAPS.map(r=>`<button class="bet-opt" id="bo_${m.key}_h_${r.replace('-','')}" data-mk="${m.key}" data-team="${home}" data-res="${r}" data-si="${si}" onclick="pickSeries(this.dataset.mk,this.dataset.team,this.dataset.res,this.dataset.si)"><span class="opt-team">${home}</span><span class="opt-res">${r}</span></button>`).join('');
+      const aOpts=GAPS.map(r=>`<button class="bet-opt" id="bo_${m.key}_a_${r.replace('-','')}" data-mk="${m.key}" data-team="${away}" data-res="${r}" data-si="${si}" onclick="pickSeries(this.dataset.mk,this.dataset.team,this.dataset.res,this.dataset.si)"><span class="opt-team">${away}</span><span class="opt-res">${r}</span></button>`).join('');
       html+=`<div class="matchup-bet-card"><div class="match-label">🏀 ${lbl}</div>
         <div class="bet-options">${hOpts}${aOpts}</div>
         ${m.hasMvp?`<div class="form-group" style="margin-top:9px;margin-bottom:0"><label>🏅 MVP</label><input type="text" id="mvp_${m.key}" placeholder="שם שחקן..." oninput="CBD['${m.key}_mvp']=this.value"></div>`:''}
@@ -1086,7 +1086,7 @@ function renderTeamSetupForm(){
         <input class="ts-inp" id="ts_${m.key}_away" value="${t.away}" placeholder="אורחת...">
       </div>`;
     }
-    html+=`<button class="btn btn-secondary btn-sm" style="margin-top:9px" onclick="saveTeamSetup(${typeof si==='string'?'\''+ si +'\''  :si})">💾 שמור קבוצות</button>`;
+    html+=`<button class="btn btn-secondary btn-sm" style="margin-top:9px" onclick="saveTeamSetup(this.dataset.si)" data-si="${si}">💾 שמור קבוצות</button>`;
   }
   form.innerHTML=html;
 }
@@ -1120,10 +1120,10 @@ function renderBonusAdminList(si){
     const answers=b.answers||[];
     const ansHtml=answers.map((a,ai)=>`<div class="bonus-answer-row">
       <input type="text" value="${a}" placeholder="תשובה אפשרית..." onchange="bonusBetDraft[${si}][${i}].answers[${ai}]=this.value">
-      <button class="remove-ans" onclick="removeBonusAnswer(${typeof si==='string'?'\''+ si +'\''  :si},${i},${ai})">✕</button>
+      <button class="remove-ans" onclick="removeBonusAnswer(this.dataset.si,this.dataset.idx,this.dataset.aidx)" data-si="${si}" data-idx="${i}" data-aidx="${ai}">✕</button>
     </div>`).join('');
     return`<div class="bonus-admin-card">
-      <button class="remove-btn" onclick="removeBonusBet(${typeof si==='string'?'\''+ si +'\''  :si},${i})">✕ הסר</button>
+      <button class="remove-btn" onclick="removeBonusBet(this.dataset.si,this.dataset.idx)" data-si="${si}" data-idx="${i}">✕ הסר</button>
       <div class="form-group" style="margin-bottom:8px"><label>שאלה</label>
         <input type="text" value="${b.question}" placeholder="השאלה..." style="background:var(--dark);border:1.5px solid rgba(255,215,0,0.3);border-radius:7px;color:var(--text);font-family:'Heebo',sans-serif;font-size:0.84rem;padding:7px 10px;width:100%" onchange="bonusBetDraft[${si}][${i}].question=this.value">
       </div>
@@ -1132,7 +1132,7 @@ function renderBonusAdminList(si){
       </div>
       <label style="font-size:0.78rem;color:var(--text2);font-weight:600;display:block;margin-bottom:6px">תשובות אפשריות</label>
       <div class="bonus-answers">${ansHtml}</div>
-      <button class="btn-ghost" style="margin-top:8px;font-size:0.78rem" onclick="addBonusAnswer(${typeof si==='string'?'\''+ si +'\''  :si},${i})">➕ הוסף תשובה</button>
+      <button class="btn-ghost" style="margin-top:8px;font-size:0.78rem" onclick="addBonusAnswer(this.dataset.si,this.dataset.idx)" data-si="${si}" data-idx="${i}">➕ הוסף תשובה</button>
     </div>`;
   }).join('');
   list.insertAdjacentHTML('beforeend',`<button class="btn btn-primary" style="margin-top:10px" onclick="saveBonusBets(this.dataset.si)" data-si="${si}">💾 שמור הימורי בונוס</button>`);
