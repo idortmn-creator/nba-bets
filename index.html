@@ -1110,6 +1110,7 @@ function renderTeamSetupForm(){
 }
 async function saveTeamSetup(si){
   if(si!=='0b')si=isNaN(parseInt(si))?si:parseInt(si);
+  console.log('saveTeamSetup called with si=',si,'type=',typeof si);
   if(si==='0b'){toast("ℹ️ הקבוצות בגמר הפליי-אין מחושבות אוטומטית מתוצאות שלב א של הפליי-אין");return;}
   // Build nested object for proper Firestore storage
   const stageTeams={};
@@ -1117,9 +1118,14 @@ async function saveTeamSetup(si){
     const h=document.getElementById('ts_'+m.key+'_home'),a=document.getElementById('ts_'+m.key+'_away');
     stageTeams[m.key]={home:h?h.value.trim():'',away:a?a.value.trim():''};
   }
-  // Use updateDoc with nested path to preserve other stages
-  await updateDoc(doc(db,'global','settings'),{[`teams.stage${si}`]:stageTeams});
-  toast('✅ קבוצות נשמרו בכל הליגות!');
+  console.log('stageTeams=',JSON.stringify(stageTeams));
+  try {
+    await updateDoc(doc(db,'global','settings'),{[`teams.stage${si}`]:stageTeams});
+    toast('✅ קבוצות נשמרו בכל הליגות!');
+  } catch(e) {
+    console.error('saveTeamSetup error:',e);
+    toast('❌ שגיאה: '+e.message);
+  }
 }
 
 // ── BONUS BETS ADMIN ──
