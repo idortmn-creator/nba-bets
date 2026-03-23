@@ -833,7 +833,10 @@ function scoreStage(uid,si){
         const bR=bet[m.key+'_result']||'',rR=result[m.key+'_result']||'';
         if(bW&&rW&&bW===rW){if(bR&&rR&&bR===rR){pts+=4;aX++;if(eK.includes(m.key))eX++;else wX++;}else{pts+=2;}aW++;if(eK.includes(m.key))eW++;else wW++;}
       }
-      if(eW===4)pts+=(eX===4?6:3);if(wW===4)pts+=(wX===4?6:3);if(aW===8)pts+=(aX===8?14:7);
+      // Bonus: all 8 winners = +7, else east 4 = +3, west 4 = +3
+      // Exact result bonuses: all 8 exact = +14, else east 4 exact = +6, west 4 exact = +6
+      if(aW===8){pts+=(aX===8?14:7);}
+      else{if(eW===4)pts+=(eX===4?6:3);if(wW===4)pts+=(wX===4?6:3);}
       const bc=(bet.champion||'').toLowerCase(),rc=(result.champion||'').toLowerCase();if(bc&&rc&&bc===rc)pts+=10;
       const be=(bet.east_champ||'').toLowerCase(),re=(result.east_champ||'').toLowerCase();if(be&&re&&be===re)pts+=3;
       const bw=(bet.west_champ||'').toLowerCase(),rw=(result.west_champ||'').toLowerCase();if(bw&&rw&&bw===rw)pts+=3;
@@ -847,7 +850,9 @@ function scoreStage(uid,si){
         const bR=bet[m.key+'_result']||'',rR=result[m.key+'_result']||'';
         if(bW&&rW&&bW===rW){if(bR&&rR&&bR===rR){pts+=6;aX++;if(eK.includes(m.key))eX++;else wX++;}else{pts+=3;}aW++;if(eK.includes(m.key))eW++;else wW++;}
       }
-      pts+=(eX===2?6:eW===2?3:0)+(wX===2?6:wW===2?3:0);if(aW===4)pts+=(aX===4?14:7);
+      // Bonus: all 4 winners = +7, else east 2 = +3, west 2 = +3
+      if(aW===4){pts+=(aX===4?14:7);}
+      else{pts+=(eX===2?6:eW===2?3:0)+(wX===2?6:wW===2?3:0);}
     } else if(si===3){
       let bW2=true,bX2=true;
       for(const m of matches){
