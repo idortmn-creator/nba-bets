@@ -1241,6 +1241,12 @@ async function saveResults(si){
   }
   // If result is empty, save null to clear it
   const resultToSave=Object.keys(result).length>0?result:null;
+  // If clearing stage0, also clear stage0b (teams depend on stage0 results)
+  if(si===0&&resultToSave===null){
+    await setDoc(doc(db,'global','settings'),{results:{stage0:null,stage0b:null}},{merge:true});
+    toast('✅ תוצאות שלב א ושלב ב אופסו!');
+    return;
+  }
   const bonusResults={};
   const bonuses=getBonusBets(si);
   for(const b of bonuses){const el=document.getElementById('bres_'+b.id);if(el){if(el.value)bonusResults[b.id]=el.value;else bonusResults[b.id]='';} }
