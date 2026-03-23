@@ -349,6 +349,14 @@ header{background:linear-gradient(135deg,var(--dark2),var(--dark3));border-botto
   </div>
 
   <!-- Admin -->
+  <!-- Pre-bets tab -->
+  <div id="ltab-prebets" style="display:none">
+    <div class="card">
+      <div class="card-title">🏆 הימורים מוקדמים</div>
+      <div id="prebetsContent"></div>
+    </div>
+  </div>
+
   <div id="ltab-admin" style="display:none">
     <div class="card">
       <div class="card-title">🔄 ניהול שלבים</div>
@@ -765,7 +773,7 @@ function renderLeaguePage(){
 
 // ── LEAGUE TABS ──
 function showLeagueTab(tab){
-  ['leaderboard','bets','enter-bets','prebets','admin'].forEach(t=>document.getElementById('ltab-'+t).style.display=t===tab?'':'none');
+  ['leaderboard','bets','enter-bets','prebets','admin'].forEach(t=>{const el=document.getElementById('ltab-'+t);if(el)el.style.display=t===tab?'':'none';});
   document.querySelectorAll('#leagueNavTabs .nav-tab').forEach((b,i)=>b.classList.toggle('active',['leaderboard','bets','enter-bets','prebets','admin'][i]===tab));
   if(tab==='leaderboard')renderLeaderboard();
   if(tab==='bets'){renderViewStageTabs();const ci=currentLeagueData.currentStage;viewStage(ci>0?STAGE_KEYS[Math.max(0,STAGE_KEYS.indexOf(ci)-1)]:0);}
