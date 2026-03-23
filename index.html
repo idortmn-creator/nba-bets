@@ -778,6 +778,7 @@ function showLeagueTab(tab){
   if(tab==='leaderboard')renderLeaderboard();
   if(tab==='bets'){renderViewStageTabs();const ci=currentLeagueData.currentStage;viewStage(ci>0?STAGE_KEYS[Math.max(0,STAGE_KEYS.indexOf(ci)-1)]:0);}
   if(tab==='enter-bets')renderBetForm();
+  if(tab==='prebets')renderPrebetsTab();
   if(tab==='admin'){initGlobalSettingsIfNeeded().then(()=>{
     renderAdmin();
     renderTeamSetupForm();
