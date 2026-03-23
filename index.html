@@ -1124,9 +1124,21 @@ async function saveTeamSetup(si){
   if(si==='0b'){toast("ℹ️ הקבוצות בגמר הפליי-אין מחושבות אוטומטית מתוצאות שלב א של הפליי-אין");return;}
   // Build nested object for proper Firestore storage
   const stageTeams={};
+  // Read directly from all team inputs in the form
+  const allInputs=document.querySelectorAll('[id^="ts_"][id$="_home"],[id^="ts_"][id$="_away"]');
+  allInputs.forEach(inp=>{
+    const parts=inp.id.split('_'); // ts, key, home/away
+    const side=parts[parts.length-1]; // home or away
+    const key=parts.slice(1,parts.length-1).join('_'); // e.g. e1, w1, e_final
+    if(!stageTeams[key])stageTeams[key]={home:'',away:''};
+    stageTeams[key][side]=inp.value.trim();
+  });
+  // Also try getElementById as fallback
   for(const m of STAGE_MATCHES[si]||[]){
-    const h=document.getElementById('ts_'+m.key+'_home'),a=document.getElementById('ts_'+m.key+'_away');
-    stageTeams[m.key]={home:h?h.value.trim():'',away:a?a.value.trim():''};
+    if(!stageTeams[m.key]||(!stageTeams[m.key].home&&!stageTeams[m.key].away)){
+      const h=document.getElementById('ts_'+m.key+'_home'),a=document.getElementById('ts_'+m.key+'_away');
+      if(h||a)stageTeams[m.key]={home:h?h.value.trim():'',away:a?a.value.trim():''};
+    }
   }
   console.log('stageTeams=',JSON.stringify(stageTeams));
   try {
