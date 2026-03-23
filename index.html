@@ -1,7 +1,5 @@
-
-
-
 <!DOCTYPE html>
+<!-- v2.5 -->
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
@@ -764,25 +762,25 @@ function scoreStage(uid,si){
   let pts=0;
   if(result){
     const matches=STAGE_MATCHES[si];
-    if(si===0||si==='0b'){
-      // stage0: 4 games (east/west 7v8, 9v10), stage0b: 2 finals
-      let eC=0,wC=0,tot=0;
-      for(const m of matches){const b=(bet[m.key]||'').toLowerCase().trim(),r=(result[m.key]||'').toLowerCase().trim();if(b&&r&&b===r){pts++;tot++;if(m.conf==='east')eC++;else wC++;}}
-      // Bonuses only on stage0b (final 2 games) since bonuses cover full playin
-      if(si==='0b'){
-        // Check full playin bonus: need stage0 bets too
-        const bet0=(currentLeagueData?.bets||{})[uid]?.['stage0']||{};
-        const result0=(getGlobal('results',{}))['stage0']||{};
-        const allMatches=[...STAGE_MATCHES[0],...STAGE_MATCHES['0b']];
-        let eCAll=0,wCAll=0,totAll=0;
-        for(const m of allMatches){
-          const bSrc=STAGE_MATCHES[0].find(x=>x.key===m.key)?bet0:bet;
-          const rSrc=STAGE_MATCHES[0].find(x=>x.key===m.key)?result0:result;
-          const b=(bSrc[m.key]||'').toLowerCase().trim(),r=(rSrc[m.key]||'').toLowerCase().trim();
-          if(b&&r&&b===r){totAll++;if(m.conf==='east')eCAll++;else wCAll++;}
-        }
-        if(eCAll===3)pts+=1;if(wCAll===3)pts+=1;if(totAll===6)pts+=3;
+    if(si===0){
+      // stage0: 4 games only, no bonuses here
+      for(const m of matches){const b=(bet[m.key]||'').toLowerCase().trim(),r=(result[m.key]||'').toLowerCase().trim();if(b&&r&&b===r)pts++;}
+    } else if(si==='0b'){
+      // stage0b: 2 finals + calculate ALL 6 playin bonuses
+      for(const m of matches){const b=(bet[m.key]||'').toLowerCase().trim(),r=(result[m.key]||'').toLowerCase().trim();if(b&&r&&b===r)pts++;}
+      // Full playin bonus check (all 6 games)
+      const bet0=(currentLeagueData?.bets||{})[uid]?.['stage0']||{};
+      const result0=(getGlobal('results',{}))['stage0']||{};
+      const allMatches=[...STAGE_MATCHES[0],...STAGE_MATCHES['0b']];
+      let eCAll=0,wCAll=0,totAll=0;
+      for(const m of allMatches){
+        const bSrc=STAGE_MATCHES[0].find(x=>x.key===m.key)?bet0:bet;
+        const rSrc=STAGE_MATCHES[0].find(x=>x.key===m.key)?result0:result;
+        const b=(bSrc[m.key]||'').toLowerCase().trim(),r=(rSrc[m.key]||'').toLowerCase().trim();
+        if(b&&r&&b===r){totAll++;if(m.conf==='east')eCAll++;else wCAll++;}
       }
+      if(eCAll===3)pts+=1;if(wCAll===3)pts+=1;if(totAll===6)pts+=1;
+      // bonus bets scored below
     } else if(si===1){
       const eK=['e1','e2','e3','e4'];let eW=0,wW=0,aW=0,eX=0,wX=0,aX=0;
       for(const m of matches){
@@ -899,7 +897,7 @@ function viewStage(idx){
     const bet=((ld.bets||{})[uid]||{})['stage'+idx]||{};
     const stageScore=scoreStage(uid,idx);
     let items='';
-    if(idx===0){
+    if(idx===0||idx==='0b'){
       for(const m of matches){const bv=bet[m.key]||'-';let cls='pending';if(result[m.key])cls=bv.toLowerCase()===result[m.key].toLowerCase()?'correct':'wrong';items+=`<div class="bet-item"><span class="bet-label">${teamLabel(idx,m.key,m.label)}</span><span class="bet-value ${cls}">${bv}</span></div>`;}
     } else {
       for(const m of matches){
@@ -960,8 +958,8 @@ function renderBetForm(){
     for(const m of matches){
       const t=getTeams(si,m.key),home=t.home||'ביתית',away=t.away||'אורחת';
       const lbl=t.home&&t.away?`${home} מול ${away}`:m.label;
-      const hOpts=GAPS.map(r=>`<button class="bet-opt" id="bo_${m.key}_h_${r.replace('-','')}" onclick="pickSeries('${m.key}','${home}','${r}',${si})"><span class="opt-team">${home}</span><span class="opt-res">${r}</span></button>`).join('');
-      const aOpts=GAPS.map(r=>`<button class="bet-opt" id="bo_${m.key}_a_${r.replace('-','')}" onclick="pickSeries('${m.key}','${away}','${r}',${si})"><span class="opt-team">${away}</span><span class="opt-res">${r}</span></button>`).join('');
+      const hOpts=GAPS.map(r=>`<button class="bet-opt" id="bo_${m.key}_h_${r.replace('-','')}" onclick="pickSeries('${m.key}','${home}','${r}',${typeof si==='string'?`'${si}'`:si})"><span class="opt-team">${home}</span><span class="opt-res">${r}</span></button>`).join('');
+      const aOpts=GAPS.map(r=>`<button class="bet-opt" id="bo_${m.key}_a_${r.replace('-','')}" onclick="pickSeries('${m.key}','${away}','${r}',${typeof si==='string'?`'${si}'`:si})"><span class="opt-team">${away}</span><span class="opt-res">${r}</span></button>`).join('');
       html+=`<div class="matchup-bet-card"><div class="match-label">🏀 ${lbl}</div>
         <div class="bet-options">${hOpts}${aOpts}</div>
         ${m.hasMvp?`<div class="form-group" style="margin-top:9px;margin-bottom:0"><label>🏅 MVP</label><input type="text" id="mvp_${m.key}" placeholder="שם שחקן..." oninput="CBD['${m.key}_mvp']=this.value"></div>`:''}
@@ -992,7 +990,7 @@ function renderBetForm(){
     }
   } // end else bonusLocked
   } // end if bonuses.length
-  html+=`<div style="margin-top:16px;display:flex;gap:9px;"><button class="btn btn-primary" style="width:auto" onclick="saveBet(${si})">💾 שמור הימורים</button><button class="btn btn-secondary btn-sm" onclick="CBD={};document.querySelectorAll('.bet-opt,.team-btn,.bonus-opt').forEach(b=>b.classList.remove('sel-home','sel-away','selected','sel-bonus'))">🔄 נקה</button></div>`;
+  html+=`<div style="margin-top:16px;display:flex;gap:9px;"><button class="btn btn-primary" style="width:auto" onclick="saveBet(this.dataset.si)" data-si="${si}">💾 שמור הימורים</button><button class="btn btn-secondary btn-sm" onclick="CBD={};document.querySelectorAll('.bet-opt,.team-btn,.bonus-opt').forEach(b=>b.classList.remove('sel-home','sel-away','selected','sel-bonus'))">🔄 נקה</button></div>`;
   content.innerHTML=html;
   // Load existing
   const existing=((currentLeagueData?.bets||{})[currentUser.uid]||{})['stage'+si]||{};
@@ -1088,7 +1086,7 @@ function renderTeamSetupForm(){
         <input class="ts-inp" id="ts_${m.key}_away" value="${t.away}" placeholder="אורחת...">
       </div>`;
     }
-    html+=`<button class="btn btn-secondary btn-sm" style="margin-top:9px" onclick="saveTeamSetup(${si})">💾 שמור קבוצות</button>`;
+    html+=`<button class="btn btn-secondary btn-sm" style="margin-top:9px" onclick="saveTeamSetup(${typeof si==='string'?'\''+ si +'\''  :si})">💾 שמור קבוצות</button>`;
   }
   form.innerHTML=html;
 }
@@ -1122,10 +1120,10 @@ function renderBonusAdminList(si){
     const answers=b.answers||[];
     const ansHtml=answers.map((a,ai)=>`<div class="bonus-answer-row">
       <input type="text" value="${a}" placeholder="תשובה אפשרית..." onchange="bonusBetDraft[${si}][${i}].answers[${ai}]=this.value">
-      <button class="remove-ans" onclick="removeBonusAnswer(${si},${i},${ai})">✕</button>
+      <button class="remove-ans" onclick="removeBonusAnswer(${typeof si==='string'?'\''+ si +'\''  :si},${i},${ai})">✕</button>
     </div>`).join('');
     return`<div class="bonus-admin-card">
-      <button class="remove-btn" onclick="removeBonusBet(${si},${i})">✕ הסר</button>
+      <button class="remove-btn" onclick="removeBonusBet(${typeof si==='string'?'\''+ si +'\''  :si},${i})">✕ הסר</button>
       <div class="form-group" style="margin-bottom:8px"><label>שאלה</label>
         <input type="text" value="${b.question}" placeholder="השאלה..." style="background:var(--dark);border:1.5px solid rgba(255,215,0,0.3);border-radius:7px;color:var(--text);font-family:'Heebo',sans-serif;font-size:0.84rem;padding:7px 10px;width:100%" onchange="bonusBetDraft[${si}][${i}].question=this.value">
       </div>
@@ -1134,10 +1132,10 @@ function renderBonusAdminList(si){
       </div>
       <label style="font-size:0.78rem;color:var(--text2);font-weight:600;display:block;margin-bottom:6px">תשובות אפשריות</label>
       <div class="bonus-answers">${ansHtml}</div>
-      <button class="btn-ghost" style="margin-top:8px;font-size:0.78rem" onclick="addBonusAnswer(${si},${i})">➕ הוסף תשובה</button>
+      <button class="btn-ghost" style="margin-top:8px;font-size:0.78rem" onclick="addBonusAnswer(${typeof si==='string'?'\''+ si +'\''  :si},${i})">➕ הוסף תשובה</button>
     </div>`;
   }).join('');
-  list.insertAdjacentHTML('beforeend',`<button class="btn btn-primary" style="margin-top:10px" onclick="saveBonusBets(${si})">💾 שמור הימורי בונוס</button>`);
+  list.insertAdjacentHTML('beforeend',`<button class="btn btn-primary" style="margin-top:10px" onclick="saveBonusBets(this.dataset.si)" data-si="${si}">💾 שמור הימורי בונוס</button>`);
 }
 
 function addBonusBet(){
@@ -1214,26 +1212,35 @@ function renderResultForm(){
         </select></div>`;
     }
   }
-  html+=`<button class="btn btn-secondary btn-sm" onclick="saveResults(${si})">💾 שמור תוצאות</button>`;
+  html+=`<button class="btn btn-secondary btn-sm" onclick="saveResults(this.dataset.si)" data-si="${si}">💾 שמור תוצאות</button>`;
   content.innerHTML=html;
 }
 
 async function saveResults(si){
-  const matches=STAGE_MATCHES[si],result={};
-  if(si===0){for(const m of matches){const el=document.getElementById('res_'+m.key);if(el)result[m.key]=el.value;}}
-  else{
+  const matches=STAGE_MATCHES[si];
+  let result={};
+  if(si===0){for(const m of matches){const el=document.getElementById('res_'+m.key);if(el&&el.value)result[m.key]=el.value;}}
+  else if(si==='0b'){
+    // Play-in finals: single game, winner only
     for(const m of matches){
       const el=document.getElementById('res_'+m.key);
-      if(el&&el.value){const p=el.value.split('|');result[m.key+'_winner']=p[0];result[m.key+'_result']=p[1];}
+      if(el&&el.value)result[m.key]=el.value;
+    }
+  } else{
+    for(const m of matches){
+      const el=document.getElementById('res_'+m.key);
+      if(el&&el.value){const p=el.value.split('|');result[m.key+'_winner']=p[0];if(p[1]!==undefined)result[m.key+'_result']=p[1];}
       if(m.hasMvp){const e2=document.getElementById('res_'+m.key+'_mvp');if(e2)result[m.key+'_mvp']=e2.value.trim();}
     }
     if(si===1){for(const p of PREBETS){const el=document.getElementById('res_'+p.key);if(el)result[p.key]=el.value.trim();}}
   }
+  // If result is empty, save null to clear it
+  const resultToSave=Object.keys(result).length>0?result:null;
   const bonusResults={};
   const bonuses=getBonusBets(si);
   for(const b of bonuses){const el=document.getElementById('bres_'+b.id);if(el){if(el.value)bonusResults[b.id]=el.value;else bonusResults[b.id]='';} }
   const bKey2=getBonusStageKey(si);
-  await setDoc(doc(db,'global','settings'),{results:{['stage'+si]:result},bonusResults:{[bKey2]:bonusResults}},{merge:true});
+  await setDoc(doc(db,'global','settings'),{results:{['stage'+si]:resultToSave},bonusResults:{[bKey2]:bonusResults}},{merge:true});
   toast('✅ תוצאות נשמרו בכל הליגות!');
 }
 
