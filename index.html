@@ -486,6 +486,26 @@ const PREBETS=[{key:'champion',label:'🏆 אלוף NBA'},{key:'east_champ',labe
 
 // ── STAGE KEYS (ordered) ──
 const STAGE_KEYS=[0,'0b',1,2,3,4];
+function hasStageResults(si){
+  const r=getGlobal('results',{});
+  const stageR=r['stage'+si];
+  if(!stageR)return false;
+  return Object.values(stageR).some(v=>v&&v!=='');
+}
+
+function canBetOnStage(si){
+  // Can always bet on stage 0 (playin round 1)
+  if(si===0)return true;
+  // For stage 0b (playin finals), need stage 0 results
+  if(si==='0b')return hasStageResults(0);
+  // For stage 1, need stage 0b results
+  if(si===1)return hasStageResults('0b');
+  // For stages 2-4, need previous stage results
+  const prev={2:1,3:2,4:3};
+  if(prev[si]!==undefined)return hasStageResults(prev[si]);
+  return true;
+}
+
 function isSeriesLocked(si,mk){return !!(getGlobal('seriesLocked',{})[si+'_'+mk]);}
 function getSeriesLockedKey(si,mk){return si+'_'+mk;}
 // Bonus is locked when stage 0 (first playin) is locked
@@ -1068,6 +1088,12 @@ function renderBetForm(){
   const content=document.getElementById('betFormContent');
   CBD={};
   if(locked){content.innerHTML='<div class="info-box" style="color:var(--red);border-color:rgba(255,68,68,0.3)">🔒 שלב זה נעול</div>';return;}
+  if(!canBetOnStage(si)){
+    const prevNames={'0b':'פליי-אין סיבוב א',1:'פליי-אין גמר',2:'סיבוב ראשון',3:'סיבוב שני',4:'גמר איזורי'};
+    const prevName=prevNames[si]||'השלב הקודם';
+    content.innerHTML=`<div class="info-box" style="color:var(--text2)">⏳ ניתן להמר רק לאחר הזנת תוצאות ${prevName}</div>`;
+    return;
+  }
   const matches=STAGE_MATCHES[si];
   let html='<div class="separator"></div>';
   if(si===0||si==='0b'){
@@ -1488,6 +1514,39 @@ async function saveResults(si){
   const bKey2=getBonusStageKey(si);
   await setDoc(doc(db,'global','settings'),{results:{['stage'+si]:resultToSave},bonusResults:{[bKey2]:bonusResults}},{merge:true});
   toast('✅ תוצאות נשמרו בכל הליגות!');
+  
+  // If clearing results (null), reset bets for future stages
+  if(resultToSave===null){
+    const futureStages={0:['0b',1,2,3,4],'0b':[1,2,3,4],1:[2,3,4],2:[3,4],3:[4],4:[]};
+    const toReset=futureStages[si]||[];
+    if(toReset.length>0){
+      // Reset bets for all league members for future stages
+      const ld=currentLeagueData;
+      if(ld&&ld.members){
+        const updates={};
+        for(const uid of ld.members){
+          for(const fsi of toReset){
+            updates[`bets.${uid}.stage${fsi}`]=null;
+          }
+        }
+        if(Object.keys(updates).length>0){
+          await updateDoc(doc(db,'leagues',currentLeague),updates);
+        }
+      }
+      // Also clear series locks for future stages
+      const serLocked=getGlobal('seriesLocked',{});
+      const newSerLocked={};
+      for(const [k,v] of Object.entries(serLocked)){
+        const stagePart=k.split('_')[0];
+        const stageNum=stagePart==='0b'?'0b':parseInt(stagePart);
+        if(!toReset.map(String).includes(String(stageNum))){
+          newSerLocked[k]=v;
+        }
+      }
+      await setDoc(doc(db,'global','settings'),{seriesLocked:newSerLocked},{merge:true});
+      toast('✅ תוצאות אופסו + הימורי שלבים עתידיים אופסו!');
+    }
+  }
 }
 
 async function setCurrentStage(){
