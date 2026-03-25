@@ -1061,10 +1061,11 @@ function viewStage(idx){
         items+=`<div class="bet-item"><span class="bet-label">${teamLabel(idx,m.key,m.label)}</span><span class="bet-value ${wC}">${bW} <span style="opacity:0.65">(${bR})</span></span></div>`;
         if(m.hasMvp){const bM=bet[m.key+'_mvp']||'-';let mC='pending';if(result[m.key+'_mvp'])mC=bM.toLowerCase()===result[m.key+'_mvp'].toLowerCase()?'correct':'wrong';items+=`<div class="bet-item"><span class="bet-label">MVP</span><span class="bet-value ${mC}">${bM}</span></div>`;}
       }
-      if(idx===1){for(const p of PREBETS){const bv=bet[p.key]||'-';let cls='pending';if(result[p.key])cls=bv.toLowerCase()===(result[p.key]||'').toLowerCase()?'correct':'wrong';items+=`<div class="bet-item"><span class="bet-label">${p.label}</span><span class="bet-value ${cls}">${bv}</span></div>`;}}
+      if(idx===1&&isPreBetsLocked()){for(const p of PREBETS){const bv=bet[p.key]||'-';let cls='pending';if(result[p.key])cls=bv.toLowerCase()===(result[p.key]||'').toLowerCase()?'correct':'wrong';items+=`<div class="bet-item"><span class="bet-label">${p.label}</span><span class="bet-value ${cls}">${bv}</span></div>`;}}
     }
-    // Bonus bets in view
+    // Bonus bets in view - only show locked bonuses
     for(const b of bonuses){
+      if(!isSingleBonusLocked(idx,b))continue; // skip unlocked bonuses
       const bv=bet['bonus_'+b.id]||'-';let cls='pending';
       const correctAns=bonusResults[b.id]||'';
       if(correctAns)cls=bv.toLowerCase()===correctAns.toLowerCase()?'correct':'wrong';
