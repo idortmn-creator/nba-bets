@@ -516,6 +516,11 @@ function isBonusLocked(si){
   const lockIdx = (si===0||si==='0b') ? 0 : STAGE_KEYS.indexOf(si);
   return (getGlobal('stageLocked',[]))[lockIdx]||false;
 }
+function isPreBetsLocked(){
+  // Pre-bets locked when any series in stage 1 is locked
+  const sl=getGlobal('seriesLocked',{});
+  return Object.keys(sl).some(k=>k.startsWith('1_')&&sl[k]);
+}
 // Get auto-computed teams for 0b finals based on stage0 results
 function getPlayinFinalTeams(conf){
   const r0=(getGlobal('results',{}))['stage0']||{};
@@ -1012,8 +1017,13 @@ function viewStage(idx){
   const locked=stageLocks[idxNum]||false;
   const currentStageIdx=STAGE_KEYS.indexOf(getGlobal('currentStage',0));
   const content=document.getElementById('betsContent');
-  // Show bets only if: stage is locked OR stage has already passed
-  if(!locked){content.innerHTML='<div class="card"><div class="empty-state"><div class="icon">🔒</div><p>ניתן לצפות לאחר נעילת השלב</p></div></div>';return;}
+  // For playin stages, still require stage lock
+  // For series stages (1-4), show per-series - no stage lock needed
+  const isSeriesStage=idx!==0&&idx!=='0b';
+  if(!locked&&!isSeriesStage){
+    content.innerHTML='<div class="card"><div class="empty-state"><div class="icon">🔒</div><p>ניתן לצפות לאחר נעילת השלב</p></div></div>';
+    return;
+  }
   const ld=currentLeagueData;
   const result=(getGlobal('results',{}))['stage'+idx]||{},matches=STAGE_MATCHES[idx];
   const members=ld.members||[],memberInfo=ld.memberInfo||{};
@@ -1124,6 +1134,10 @@ function renderBetForm(){
       const lbl=t.home&&t.away?`${home} מול ${away}`:m.label;
       const hOpts=GAPS.map(r=>`<button class="bet-opt home-opt" id="bo_${m.key}_h_${r.replace('-','')}" data-mk="${m.key}" data-team="${home}" data-res="${r}" data-si="${si}" onclick="pickSeries(this.dataset.mk,this.dataset.team,this.dataset.res,this.dataset.si)" style="width:100%"><span class="opt-res">${r}</span></button>`).join('');
       const aOpts=GAPS.map(r=>`<button class="bet-opt away-opt" id="bo_${m.key}_a_${r.replace('-','')}" data-mk="${m.key}" data-team="${away}" data-res="${r}" data-si="${si}" onclick="pickSeries(this.dataset.mk,this.dataset.team,this.dataset.res,this.dataset.si)" style="width:100%"><span class="opt-res">${r}</span></button>`).join('');
+      const mSerLocked=isSeriesLocked(si,m.key);
+      if(mSerLocked){
+        html+=`<div class="matchup-bet-card" style="opacity:0.5;pointer-events:none"><div class="match-label">🏀 ${lbl} 🔒</div><div style="color:var(--text2);font-size:0.8rem;text-align:center;padding:8px">סדרה זו ננעלה</div>`;
+      } else {
       html+=`<div class="matchup-bet-card"><div class="match-label">🏀 ${lbl}</div>
         <div style="display:flex;gap:10px;margin-top:7px;align-items:stretch;">
           <div style="flex:1;display:flex;flex-direction:column;gap:5px;padding:6px 8px;background:rgba(79,195,247,0.05);border-radius:8px;border:1px solid rgba(79,195,247,0.15);">
@@ -1137,6 +1151,7 @@ function renderBetForm(){
         </div>
         ${m.hasMvp?`<div class="form-group" style="margin-top:9px;margin-bottom:0"><label>🏅 MVP</label><input type="text" id="mvp_${m.key}" placeholder="שם שחקן..." oninput="CBD['${m.key}_mvp']=this.value"></div>`:''}
       </div>`;
+      } // end else mSerLocked
     }
     if(si===1){
       html+=`<div class="separator"></div><div class="card-title" style="margin-bottom:10px">🏆 הימורים מראש</div>`;
@@ -1152,6 +1167,9 @@ function renderBetForm(){
       
       const makeOpts=(teams,curVal)=>teams.map(t=>`<option value="${t}" ${curVal===t?'selected':''}>${t}</option>`).join('');
       
+      if(isPreBetsLocked()){
+        html+=`<div class="info-box" style="color:var(--red);border-color:rgba(255,68,68,0.3)">🔒 הימורים מוקדמים ננעלו</div>`;
+      } else {
       html+=`<div class="form-group"><label>🏆 אלוף NBA</label>
         <select id="pre_champion" onchange="CBD['champion']=this.value">
           <option value="">בחר קבוצה...</option>${makeOpts(allTeams,CBD['champion']||'')}
@@ -1164,6 +1182,7 @@ function renderBetForm(){
         <select id="pre_west_champ" onchange="CBD['west_champ']=this.value">
           <option value="">בחר קבוצה...</option>${makeOpts(westTeams,CBD['west_champ']||'')}
         </select></div>`;
+      } // end else isPreBetsLocked
     }
   }
   // Bonus bets in form — show one at a time, only if stage0 not locked
