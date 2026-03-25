@@ -516,6 +516,12 @@ function isBonusLocked(si){
   const lockIdx = (si===0||si==='0b') ? 0 : STAGE_KEYS.indexOf(si);
   return (getGlobal('stageLocked',[]))[lockIdx]||false;
 }
+function isSingleBonusLocked(si,bonus){
+  // If bonus has a seriesKey, it's locked with that series
+  if(bonus.seriesKey)return isSeriesLocked(si,bonus.seriesKey);
+  // Otherwise locked with the stage
+  return isBonusLocked(si);
+}
 function isPreBetsLocked(){
   // Pre-bets locked when any series in stage 1 is locked
   const sl=getGlobal('seriesLocked',{});
@@ -1165,7 +1171,7 @@ function renderBetForm(){
       }
       const allTeams=[...eastTeams,...westTeams];
       
-      const makeOpts=(teams,curVal)=>teams.map(t=>`<option value="${t}" ${curVal===t?'selected':''}>${t}</option>`).join('');
+      const makeOpts=(teams,curVal)=>[...teams].sort((a,b)=>a.localeCompare(b,'he')).map(t=>`<option value="${t}" ${curVal===t?'selected':''}>${t}</option>`).join('');
       
       if(isPreBetsLocked()){
         html+=`<div class="info-box" style="color:var(--red);border-color:rgba(255,68,68,0.3)">🔒 הימורים מוקדמים ננעלו</div>`;
@@ -1193,15 +1199,22 @@ function renderBetForm(){
     if(bonusLocked){html+=`<div class="info-box" style="color:var(--red);border-color:rgba(255,68,68,0.3)">🔒 הימורי הבונוס ננעלו עם שלב א' של הפליי-אין</div>`;}
     else{
     // Show first bonus, rest hidden; user reveals with button
-    for(let bi=0;bi<bonuses.length;bi++){
-      const b=bonuses[bi];
+    // Only show bonuses that are NOT yet locked (user can still bet)
+    // Bonuses with seriesKey: show only if that series is NOT locked yet
+    // Bonuses without seriesKey: show only if stage is NOT locked
+    const availableBonuses=bonuses.filter(b=>!isSingleBonusLocked(si,b));
+    for(let bi=0;bi<availableBonuses.length;bi++){
+      const b=availableBonuses[bi];
       const opts=b.answers.map(a=>`<button class="bonus-opt" id="bopt_${b.id}_${encodeURIComponent(a)}" onclick="pickBonus('${b.id}',this.getAttribute('data-val'))" data-val="${a}">${a}</button>`).join('');
       html+=`<div class="bonus-bet-card" id="bbc_${bi}" style="${bi>0?'display:none':''}">
-        <div class="bonus-label"><span>⭐ הימור בונוס ${bi+1}/${bonuses.length}</span><span class="bonus-pts-badge">${b.points} נק'</span></div>
+        <div class="bonus-label"><span>⭐ הימור בונוס ${bi+1}/${availableBonuses.length}</span><span class="bonus-pts-badge">${b.points} נק'</span></div>
         <div class="bonus-q">${b.question}</div>
         <div class="bonus-opts">${opts}</div>
-        ${bi<bonuses.length-1?`<div style="margin-top:10px"><button class="btn btn-secondary btn-sm" onclick="showNextBonus(${bi})">הימור בונוס הבא ←</button></div>`:''}
+        ${bi<availableBonuses.length-1?`<div style="margin-top:10px"><button class="btn btn-secondary btn-sm" onclick="showNextBonus(${bi})">הימור בונוס הבא ←</button></div>`:''}
       </div>`;
+    }
+    if(availableBonuses.length===0&&bonuses.length>0){
+      html+=`<div class="info-box" style="color:var(--text2)">כל הימורי הבונוס לשלב זה ננעלו</div>`;
     }
   } // end else bonusLocked
   } // end if bonuses.length
@@ -1362,6 +1375,8 @@ async function saveTeamSetup(si){
 }
 
 // ── BONUS BETS ADMIN ──
+function updateBonusSeries(si,i,val){const key=si==='0b'?'0b':parseInt(si);if(bonusBetDraft[key]&&bonusBetDraft[key][i])bonusBetDraft[key][i].seriesKey=val;}
+window.updateBonusSeries=updateBonusSeries;
 function updateBonusQuestion(si,i,val){if(!si||si==='0b'?bonusBetDraft['0b']:bonusBetDraft[parseInt(si)||si]);const key=si==='0b'?'0b':parseInt(si);if(bonusBetDraft[key]&&bonusBetDraft[key][i])bonusBetDraft[key][i].question=val;}
 function updateBonusPoints(si,i,val){const key=si==='0b'?'0b':parseInt(si);if(bonusBetDraft[key]&&bonusBetDraft[key][i])bonusBetDraft[key][i].points=parseFloat(val)||1;}
 function updateBonusAnswer(si,i,ai,val){const key=si==='0b'?'0b':parseInt(si);if(bonusBetDraft[key]&&bonusBetDraft[key][i])bonusBetDraft[key][i].answers[parseInt(ai)]=val;}
@@ -1383,6 +1398,10 @@ function renderBonusAdminList(si){
       <input type="text" value="${a}" placeholder="תשובה אפשרית..." data-si="${si}" data-idx="${i}" data-aidx="${ai}" onchange="updateBonusAnswer(this.dataset.si,this.dataset.idx,this.dataset.aidx,this.value)">
       <button class="remove-ans" onclick="removeBonusAnswer(this.dataset.si,this.dataset.idx,this.dataset.aidx)" data-si="${si}" data-idx="${i}" data-aidx="${ai}">✕</button>
     </div>`).join('');
+    // Build series options for this stage
+    const stageMatches=STAGE_MATCHES[typeof si==='string'&&si!=='0b'?parseInt(si):si]||[];
+    const seriesOpts=stageMatches.map(m=>{const t=getTeams(si,m.key);const lbl=t.home&&t.away?`${t.home} מול ${t.away}`:m.label;return`<option value="${m.key}" ${b.seriesKey===m.key?'selected':''}>${lbl}</option>`;}).join('');
+    
     return`<div class="bonus-admin-card">
       <button class="remove-btn" onclick="removeBonusBet(this.dataset.si,this.dataset.idx)" data-si="${si}" data-idx="${i}">✕ הסר</button>
       <div class="form-group" style="margin-bottom:8px"><label>שאלה</label>
@@ -1391,6 +1410,10 @@ function renderBonusAdminList(si){
       <div class="form-group" style="margin-bottom:8px"><label>נקודות</label>
         <input type="number" value="${b.points}" min="0.5" step="0.5" style="background:var(--dark);border:1.5px solid rgba(255,215,0,0.3);border-radius:7px;color:var(--text);font-family:'Heebo',sans-serif;font-size:0.84rem;padding:7px 10px;width:100px" data-si="${si}" data-idx="${i}" onchange="updateBonusPoints(this.dataset.si,this.dataset.idx,this.value)">
       </div>
+      ${stageMatches.length?`<div class="form-group" style="margin-bottom:8px"><label>🔗 שייך לסדרה (ננעל עם הסדרה)</label>
+        <select style="background:var(--dark);border:1.5px solid rgba(255,215,0,0.3);border-radius:7px;color:var(--text);font-family:'Heebo',sans-serif;font-size:0.82rem;padding:6px 10px;width:100%" data-si="${si}" data-idx="${i}" onchange="updateBonusSeries(this.dataset.si,this.dataset.idx,this.value)">
+          <option value="">ללא שיוך — נעל עם שלב</option>${seriesOpts}
+        </select></div>`:''}
       <label style="font-size:0.78rem;color:var(--text2);font-weight:600;display:block;margin-bottom:6px">תשובות אפשריות</label>
       <div class="bonus-answers">${ansHtml}</div>
       <button class="btn-ghost" style="margin-top:8px;font-size:0.78rem" onclick="addBonusAnswer(this.dataset.si,this.dataset.idx)" data-si="${si}" data-idx="${i}">➕ הוסף תשובה</button>
@@ -1402,7 +1425,7 @@ function renderBonusAdminList(si){
 function addBonusBet(){
   const bsiRaw2=document.getElementById('bonusStageSelect').value;const si=bsiRaw2==='0b'?'0b':parseInt(bsiRaw2);
   if(!bonusBetDraft[si])bonusBetDraft[si]=[];
-  bonusBetDraft[si].push({id:'b'+Date.now(),question:'',points:1,answers:['','']});
+  bonusBetDraft[si].push({id:'b'+Date.now(),question:'',points:1,answers:['',''],seriesKey:''});
   renderBonusAdminList(si);
 }
 function removeBonusBet(si,i){bonusBetDraft[si].splice(i,1);renderBonusAdminList(si);}
