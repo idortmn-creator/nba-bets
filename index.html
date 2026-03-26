@@ -214,6 +214,7 @@ header{background:linear-gradient(135deg,var(--dark2),var(--dark3));border-botto
         <div class="menu-separator"></div>
         <div class="menu-separator"></div>
         <div class="menu-item" onclick="closeMenuAnd(showProfile)"><span class="mi-icon">👤</span> פרופיל</div>
+        <div class="menu-item" id="menuGlobalAdmin" style="display:none" onclick="closeMenuAnd(openGlobalAdmin)"><span class="mi-icon">⚙️</span> ניהול גלובלי</div>
         <div class="menu-item danger" onclick="closeMenuAnd(doSignOut)"><span class="mi-icon">🚪</span> התנתק</div>
       </div>
     </div>
@@ -284,6 +285,17 @@ header{background:linear-gradient(135deg,var(--dark2),var(--dark3));border-botto
         </div>
       </div>
 
+<!-- GLOBAL ADMIN -->
+      <div id="page-global-admin" class="page">
+        <div style="max-width:700px;margin:0 auto;padding:24px 0">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+            <button class="btn btn-secondary btn-sm" onclick="showPage('page-home')">← חזור</button>
+            <div style="font-size:1.2rem;font-weight:700;color:var(--orange)">⚙️ ניהול גלובלי</div>
+          </div>
+          <div id="global-admin-content"></div>
+        </div>
+      </div>
+
 <!-- HOME -->
 <div id="page-home" class="page">
   <div class="section-header"><div class="section-title">שלום, <span id="homeUsername" style="color:var(--orange)"></span> 👋</div></div>
@@ -345,7 +357,7 @@ header{background:linear-gradient(135deg,var(--dark2),var(--dark3));border-botto
     <button class="nav-tab" onclick="showLeagueTab('bets')">📋 הימורים</button>
     <button class="nav-tab" onclick="showLeagueTab('enter-bets')">✍️ הימורים שלי</button>
     <button class="nav-tab" onclick="showLeagueTab('prebets')">🏆 הימורים מוקדמים</button>
-    <button class="nav-tab" id="adminTabBtn" style="display:none" onclick="showLeagueTab('admin')">⚙️ ניהול</button>
+
   </nav>
 
   <!-- Leaderboard -->
@@ -533,6 +545,8 @@ const PREBETS=[{key:'champion',label:'🏆 אלוף NBA'},{key:'east_champ',labe
 
 // ── STAGE KEYS (ordered) ──
 const STAGE_KEYS=[0,'0b',1,2,3,4];
+const SUPER_ADMIN_UID='aPgbjXex6lbB7N4X5j62Y4qqECV2';
+function isSuperAdmin(){return currentUser&&currentUser.uid===SUPER_ADMIN_UID;}
 function hasStageResults(si){
   const r=getGlobal('results',{});
   const stageR=r['stage'+si];
@@ -665,6 +679,12 @@ onAuthStateChanged(auth, async user=>{
     const uname=currentUserDoc.username||user.email;
     document.getElementById('menuUsername').textContent='👤 '+uname;
     document.getElementById('mainHeader').style.display='';
+    if(isSuperAdmin()){
+      const saBtn=document.getElementById('superAdminHomeBtn');
+      const saMenu=document.getElementById('menuGlobalAdmin');
+      if(saBtn)saBtn.style.display='';
+      if(saMenu)saMenu.style.display='';
+    }
     const params=new URLSearchParams(location.search);
     const code=params.get('code');
     startAutoLockChecker();
@@ -725,6 +745,394 @@ async function doResendVerification(){
     toast('📧 מייל אימות נשלח שוב! בדוק ספאם');
   }catch(e){toast('❌ '+(e.code==='auth/invalid-credential'?'אימייל או סיסמה שגויים':e.message));}
 }
+function openGlobalAdmin(){
+  if(!isSuperAdmin()){toast('⛔ אין גישה');return;}
+  showPage('page-global-admin');
+  renderGlobalAdmin();
+}
+window.openGlobalAdmin=openGlobalAdmin;
+
+function renderGlobalAdmin(){
+  const content=document.getElementById('global-admin-content');
+  if(!content)return;
+  // Build the same admin content but standalone
+  // Current stage info
+  const csIdx=STAGE_KEYS.indexOf(getGlobal('currentStage',0));
+  const sl=getGlobal('stageLocked',[false,false,false,false,false,false]);
+  
+  let html=`
+  <div class="card">
+    <div class="card-title">🔄 ניהול שלבים</div>
+    <div class="info-box"><strong>שלב נוכחי:</strong> ${STAGE_NAMES[csIdx]||''} ${sl[csIdx]?'🔒':'🟢'}</div>
+    <div id="allStageLockStatus2" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">
+      ${STAGE_SHORT.map((s,i)=>`<span style="padding:3px 8px;border-radius:6px;font-size:0.75rem;border:1px solid ${sl[i]?'var(--green)':'var(--border)'};color:${sl[i]?'var(--green)':'var(--text2)'}">${s} ${sl[i]?'🔒':'🔓'}</span>`).join('')}
+    </div>
+    <div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:12px">
+      <select id="gaAdminStageSelect" style="padding:8px 11px;background:var(--dark3);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-family:'Heebo',sans-serif;font-size:0.86rem;">
+        <option value="0">פליי-אין סיבוב א</option><option value="0b">פליי-אין גמר</option>
+        <option value="1">סיבוב ראשון</option><option value="2">סיבוב שני</option>
+        <option value="3">גמר איזורי</option><option value="4">גמר NBA</option>
+      </select>
+      <button class="btn btn-secondary btn-sm" onclick="gaSetCurrentStage()">עדכן שלב</button>
+      <button class="btn btn-secondary btn-sm" onclick="gaToggleStageLock()">🔒 נעל/פתח</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🏀 הגדרת קבוצות</div>
+    <select id="gaTeamStageSelect" onchange="gaRenderTeamSetup()" style="padding:8px 11px;background:var(--dark3);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-family:'Heebo',sans-serif;font-size:0.86rem;margin-bottom:12px">
+      <option value="0">פליי-אין סיבוב א</option><option value="0b">פליי-אין גמר</option>
+      <option value="1">סיבוב ראשון</option><option value="2">סיבוב שני</option>
+      <option value="3">גמר איזורי</option><option value="4">גמר NBA</option>
+    </select>
+    <div id="gaTeamSetupForm"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📊 הזן תוצאות</div>
+    <select id="gaResultStageSelect" onchange="gaRenderResultForm()" style="padding:8px 11px;background:var(--dark3);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-family:'Heebo',sans-serif;font-size:0.86rem;margin-bottom:12px">
+      <option value="0">פליי-אין סיבוב א</option><option value="0b">פליי-אין גמר</option>
+      <option value="1">סיבוב ראשון</option><option value="2">סיבוב שני</option>
+      <option value="3">גמר איזורי</option><option value="4">גמר NBA</option>
+    </select>
+    <div id="gaResultFormContent"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">⭐ הימורי בונוס</div>
+    <select id="gaBonusStageSelect" onchange="gaRenderBonusAdmin()" style="padding:8px 11px;background:var(--dark3);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-family:'Heebo',sans-serif;font-size:0.86rem;margin-bottom:12px">
+      <option value="0">פליי-אין (כל השלב)</option>
+      <option value="1">סיבוב ראשון</option><option value="2">סיבוב שני</option>
+      <option value="3">גמר איזורי</option><option value="4">גמר NBA</option>
+    </select>
+    <div id="gaBonusAdminList"></div>
+    <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="gaAddBonusBet()">➕ הוסף הימור בונוס</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">⏰ נעילה אוטומטית</div>
+    <div id="gaAutoLockList" style="margin-bottom:10px"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+      <div>
+        <div style="font-size:0.75rem;color:var(--text2);margin-bottom:4px">סוג</div>
+        <select id="gaAutoLockType" onchange="updateAutoLockTargetsGA()" style="padding:7px 10px;background:var(--dark);border:1.5px solid var(--border);border-radius:7px;color:var(--text);font-family:'Heebo',sans-serif;font-size:0.82rem;">
+          <option value="stage">שלב</option><option value="series">סדרה</option>
+        </select>
+      </div>
+      <div>
+        <div style="font-size:0.75rem;color:var(--text2);margin-bottom:4px">יעד</div>
+        <select id="gaAutoLockTarget" style="padding:7px 10px;background:var(--dark);border:1.5px solid var(--border);border-radius:7px;color:var(--text);font-family:'Heebo',sans-serif;font-size:0.82rem;">
+          <option value="0">פליי-אין א</option><option value="0b">פליי-אין גמר</option>
+          <option value="1">סיבוב ראשון</option><option value="2">סיבוב שני</option>
+          <option value="3">גמר איזורי</option><option value="4">גמר NBA</option>
+        </select>
+      </div>
+      <div>
+        <div style="font-size:0.75rem;color:var(--text2);margin-bottom:4px">תאריך ושעה</div>
+        <input type="datetime-local" id="gaAutoLockTime" style="padding:7px 10px;background:var(--dark);border:1.5px solid var(--border);border-radius:7px;color:var(--text);font-family:'Heebo',sans-serif;font-size:0.82rem;">
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="gaAddAutoLock()" style="background:rgba(255,215,0,0.1);border-color:rgba(255,215,0,0.3);color:var(--gold)">➕ הוסף</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📧 שליחת תזכורת</div>
+    <div style="color:var(--text2);font-size:0.82rem;margin-bottom:10px">שלח מייל תזכורת לכל המשתתפים</div>
+    <button class="btn btn-secondary btn-sm" onclick="sendReminderEmailGA()" style="background:rgba(79,195,247,0.1);border-color:rgba(79,195,247,0.3);color:var(--blue)">📧 פתח מייל תזכורת</button>
+  </div>`;
+  
+  content.innerHTML=html;
+  gaRenderTeamSetup();
+  gaRenderResultForm();
+  gaRenderBonusAdmin();
+  gaRenderAutoLockList();
+}
+window.renderGlobalAdmin=renderGlobalAdmin;
+
+// Global admin functions - wrappers that use the same underlying functions
+async function gaSetCurrentStage(){
+  const sv=document.getElementById('gaAdminStageSelect').value;
+  const s=sv==='0b'?'0b':parseInt(sv);
+  await setDoc(doc(db,'global','settings'),{currentStage:s},{merge:true});
+  toast('✅ שלב עודכן!');renderGlobalAdmin();
+}
+async function gaToggleStageLock(){
+  const sv=document.getElementById('gaAdminStageSelect').value;
+  const s=sv==='0b'?'0b':parseInt(sv);
+  const sIdx=STAGE_KEYS.indexOf(s);
+  const newLocked=[...(getGlobal('stageLocked',[false,false,false,false,false,false]))];
+  while(newLocked.length<6)newLocked.push(false);
+  newLocked[sIdx]=!newLocked[sIdx];
+  await setDoc(doc(db,'global','settings'),{stageLocked:newLocked},{merge:true});
+  toast(newLocked[sIdx]?'🔒 ננעל':'🔓 נפתח');renderGlobalAdmin();
+}
+function gaRenderTeamSetup(){
+  const tsiRaw=document.getElementById('gaTeamStageSelect')?.value;
+  if(!tsiRaw)return;
+  const si=tsiRaw==='0b'?'0b':parseInt(tsiRaw);
+  const matches=STAGE_MATCHES[si],form=document.getElementById('gaTeamSetupForm');
+  if(!form)return;
+  let html='';
+  if(si==='0b'){html='<div class="info-box">🔄 קבוצות מחושבות אוטומטית מתוצאות שלב א</div>';}
+  else{
+    for(const m of matches){
+      const t=getTeams(si,m.key);
+      const sLk=isSeriesLocked(si,m.key);
+      html+=`<div style="border:1px solid ${sLk?'rgba(0,230,118,0.25)':'var(--border)'};border-radius:8px;padding:8px;margin-bottom:6px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-size:0.82rem;color:var(--text2)">${m.label}</span>
+          <button data-si="${si}" data-mk="${m.key}" onclick="toggleSeriesLock(this.dataset.si,this.dataset.mk);setTimeout(gaRenderTeamSetup,500)"
+            style="padding:3px 10px;border-radius:6px;border:1px solid ${sLk?'var(--green)':'var(--border)'};background:${sLk?'rgba(0,230,118,0.15)':'transparent'};color:${sLk?'var(--green)':'var(--text2)'};cursor:pointer;font-size:0.75rem">
+            ${sLk?'🔒 נעול':'🔓 נעל'}
+          </button>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input class="ts-inp" id="ga_ts_${m.key}_home" value="${t.home}" placeholder="ביתית..." style="flex:1">
+          <span class="vs-badge">מול</span>
+          <input class="ts-inp" id="ga_ts_${m.key}_away" value="${t.away}" placeholder="אורחת..." style="flex:1">
+        </div>
+      </div>`;
+    }
+    html+=`<button class="btn btn-secondary btn-sm" style="margin-top:9px" onclick="gaSaveTeamSetup()">💾 שמור קבוצות</button>`;
+  }
+  form.innerHTML=html;
+}
+window.gaRenderTeamSetup=gaRenderTeamSetup;
+async function gaSaveTeamSetup(){
+  const tsiRaw=document.getElementById('gaTeamStageSelect')?.value;
+  if(!tsiRaw)return;
+  const si=tsiRaw==='0b'?'0b':parseInt(tsiRaw);
+  const stageTeams={};
+  for(const m of STAGE_MATCHES[si]||[]){
+    const h=document.getElementById('ga_ts_'+m.key+'_home');
+    const a=document.getElementById('ga_ts_'+m.key+'_away');
+    stageTeams[m.key]={home:h?h.value.trim():'',away:a?a.value.trim():''};
+  }
+  const currentTeams=getGlobal('teams',{});
+  const newTeams={...currentTeams,[`stage${si}`]:stageTeams};
+  await setDoc(doc(db,'global','settings'),{teams:newTeams},{merge:true});
+  toast('✅ קבוצות נשמרו!');
+}
+window.gaSaveTeamSetup=gaSaveTeamSetup;
+function gaRenderResultForm(){
+  const siRaw=document.getElementById('gaResultStageSelect')?.value;
+  if(!siRaw)return;
+  const si=siRaw==='0b'?'0b':parseInt(siRaw);
+  // Reuse existing renderResultForm logic by temporarily swapping the element
+  const content=document.getElementById('gaResultFormContent');
+  if(!content)return;
+  const matches=STAGE_MATCHES[si];
+  const result=(getGlobal('results',{}))['stage'+si]||{};
+  let html='';
+  if(si===0||si==='0b'){
+    for(const m of matches){
+      let lbl,opts;
+      if(si==='0b'){const ft=getPlayinFinalTeams(m.conf);lbl=m.label;opts=[ft.home,ft.away].filter(Boolean);if(!opts.length)opts=['מפסידת #7מול8','מנצחת #9מול10'];}
+      else{const t=getTeams(si,m.key);lbl=t.home&&t.away?`${t.home} מול ${t.away}`:m.label;opts=[t.home||'קבוצה 1',t.away||'קבוצה 2'];}
+      html+=`<div class="form-group"><label>🏀 ${lbl}</label><select id="ga_res_${m.key}"><option value="">בחר מנצחת...</option>${opts.map(o=>`<option value="${o}" ${result[m.key]===o?'selected':''}>${o}</option>`).join('')}</select></div>`;
+    }
+  } else {
+    for(const m of matches){
+      const t=getTeams(si,m.key),home=t.home||'ביתית',away=t.away||'אורחת';
+      const lbl=t.home&&t.away?`${home} מול ${away}`:m.label;
+      const allOpts=[...GAPS.map(r=>({w:home,r,l:`${home} ${r}`})),...GAPS.map(r=>({w:away,r,l:`${away} ${r}`}))];
+      const curV=result[m.key+'_winner']&&result[m.key+'_result']?`${result[m.key+'_winner']}|${result[m.key+'_result']}`:'';
+      html+=`<div class="form-group"><label>🏀 ${lbl}</label><select id="ga_res_${m.key}"><option value="">בחר תוצאה...</option>${allOpts.map(o=>{const v=`${o.w}|${o.r}`;return`<option value="${v}" ${curV===v?'selected':''}>${o.l}</option>`;}).join('')}</select></div>`;
+      if(m.hasMvp)html+=`<div class="form-group"><label>🏅 MVP</label><input type="text" id="ga_res_${m.key}_mvp" value="${result[m.key+'_mvp']||''}" placeholder="שם שחקן..."></div>`;
+    }
+    if(si===4){
+      const r1=(getGlobal('results',{}))['stage1']||{};
+      const allS1=[...STAGE_MATCHES[1]];
+      const eastT=[],westT=[];
+      for(const m of allS1){const t=getTeams(1,m.key);if(m.conf==='east'){if(t.home)eastT.push(t.home);if(t.away)eastT.push(t.away);}else{if(t.home)westT.push(t.home);if(t.away)westT.push(t.away);}}
+      const allT=[...eastT,...westT];
+      const mkS=(teams,cur)=>teams.map(t=>`<option value="${t}" ${cur===t?'selected':''}>${t}</option>`).join('');
+      html+=`<div class="separator"></div><div style="font-weight:700;color:var(--orange);margin:12px 0 9px">🏆 תוצאות הימורי מראש</div>`;
+      html+=`<div class="form-group"><label>🏆 אלוף NBA</label><select id="ga_res_champion"><option value="">בחר...</option>${mkS(allT,r1.champion||'')}</select></div>`;
+      html+=`<div class="form-group"><label>🔵 אלופת המזרח</label><select id="ga_res_east_champ"><option value="">בחר...</option>${mkS(eastT,r1.east_champ||'')}</select></div>`;
+      html+=`<div class="form-group"><label>🔴 אלופת המערב</label><select id="ga_res_west_champ"><option value="">בחר...</option>${mkS(westT,r1.west_champ||'')}</select></div>`;
+    }
+  }
+  const bonuses=getBonusBets(si),bonusResults=getBonusResults(si);
+  if(bonuses.length){
+    html+=`<div class="separator"></div><div style="font-weight:700;color:var(--gold);margin-bottom:9px">⭐ תוצאות הימורי בונוס</div>`;
+    for(const b of bonuses){
+      const opts=b.answers||[];
+      html+=`<div class="form-group"><label>${b.question} (${b.points} נק')</label>
+        <select id="ga_bres_${b.id}">
+          <option value="" ${!bonusResults[b.id]?'selected':''}>בחר תשובה נכונה...</option>
+          ${opts.map(a=>`<option value="${a}" ${bonusResults[b.id]===a&&bonusResults[b.id]!==''?'selected':''}>${a}</option>`).join('')}
+        </select></div>`;
+    }
+  }
+  html+=`<button class="btn btn-secondary btn-sm" style="margin-top:10px" onclick="gaSaveResults()">💾 שמור תוצאות</button>`;
+  content.innerHTML=html;
+}
+window.gaRenderResultForm=gaRenderResultForm;
+async function gaSaveResults(){
+  const siRaw=document.getElementById('gaResultStageSelect')?.value;
+  if(!siRaw)return;
+  const si=siRaw==='0b'?'0b':parseInt(siRaw);
+  const matches=STAGE_MATCHES[si];
+  let result={};
+  if(si===0){for(const m of matches){const el=document.getElementById('ga_res_'+m.key);if(el&&el.value)result[m.key]=el.value;}}
+  else if(si==='0b'){for(const m of matches){const el=document.getElementById('ga_res_'+m.key);if(el&&el.value)result[m.key]=el.value;}}
+  else{
+    for(const m of matches){
+      const el=document.getElementById('ga_res_'+m.key);
+      if(el&&el.value){const p=el.value.split('|');result[m.key+'_winner']=p[0];if(p[1]!==undefined)result[m.key+'_result']=p[1];}
+      if(m.hasMvp){const e2=document.getElementById('ga_res_'+m.key+'_mvp');if(e2)result[m.key+'_mvp']=e2.value.trim();}
+    }
+  }
+  const resultToSave=Object.keys(result).length>0?result:null;
+  const bonusResults={};
+  const bonuses=getBonusBets(si);
+  const bKey2=getBonusStageKey(si);
+  for(const b of bonuses){
+    const el=document.getElementById('ga_bres_'+b.id);
+    if(el){bonusResults[b.id]=el.value||'';}
+  }
+  await setDoc(doc(db,'global','settings'),{results:{['stage'+si]:resultToSave}},{merge:true});
+  if(Object.keys(bonusResults).length){
+    const bonusUpdates={};
+    for(const b of bonuses){
+      if(bonusResults[b.id])bonusUpdates[`bonusResults.${bKey2}.${b.id}`]=bonusResults[b.id];
+    }
+    if(Object.keys(bonusUpdates).length)await updateDoc(doc(db,'global','settings'),bonusUpdates);
+  }
+  // Auto-lock the stage when results saved
+  if(resultToSave){
+    const sIdx=STAGE_KEYS.indexOf(si);
+    if(sIdx>=0){
+      const newLocked=[...(getGlobal('stageLocked',[false,false,false,false,false,false]))];
+      while(newLocked.length<6)newLocked.push(false);
+      newLocked[sIdx]=true;
+      await setDoc(doc(db,'global','settings'),{stageLocked:newLocked},{merge:true});
+    }
+  }
+  // Pre-bets at stage 4
+  if(si===4){
+    const r1update={};
+    const champEl=document.getElementById('ga_res_champion');
+    const eastEl=document.getElementById('ga_res_east_champ');
+    const westEl=document.getElementById('ga_res_west_champ');
+    if(champEl)r1update.champion=champEl.value;
+    if(eastEl)r1update.east_champ=eastEl.value;
+    if(westEl)r1update.west_champ=westEl.value;
+    if(Object.keys(r1update).length){
+      const existing1=(getGlobal('results',{}))['stage1']||{};
+      await setDoc(doc(db,'global','settings'),{results:{stage1:{...existing1,...r1update}}},{merge:true});
+    }
+  }
+  toast('✅ תוצאות נשמרו!');
+  gaRenderResultForm();
+}
+window.gaSaveResults=gaSaveResults;
+function gaRenderBonusAdmin(){
+  const bsiRaw=document.getElementById('gaBonusStageSelect')?.value;
+  if(!bsiRaw)return;
+  const si=bsiRaw==='0b'?'0b':parseInt(bsiRaw);
+  const bKey=getBonusStageKey(si);
+  const bonuses=getGlobal('bonusBets',{})[bKey]||[];
+  bonusBetDraft['ga_'+si]=JSON.parse(JSON.stringify(bonuses));
+  const list=document.getElementById('gaBonusAdminList');
+  if(!list)return;
+  if(!bonuses.length){list.innerHTML='<div style="color:var(--text2);font-size:0.82rem">אין הימורי בונוס</div>';return;}
+  list.innerHTML=bonuses.map((b,i)=>{
+    const answers=b.answers||[];
+    const ansHtml=answers.map((a,ai)=>`<div class="bonus-answer-row">
+      <input type="text" value="${a}" placeholder="תשובה..." data-si="ga_${si}" data-idx="${i}" data-aidx="${ai}" onchange="updateBonusAnswer(this.dataset.si,this.dataset.idx,this.dataset.aidx,this.value)">
+      <button class="remove-ans" onclick="gaRemoveBonusAnswer(${i},${ai})">✕</button>
+    </div>`).join('');
+    return`<div class="bonus-admin-card">
+      <button class="remove-btn" onclick="gaRemoveBonusBet(${i})">✕ הסר</button>
+      <div class="form-group" style="margin-bottom:8px"><label>שאלה</label>
+        <input type="text" value="${b.question}" placeholder="השאלה..." style="background:var(--dark);border:1.5px solid rgba(255,215,0,0.3);border-radius:7px;color:var(--text);font-family:'Heebo',sans-serif;font-size:0.84rem;padding:7px 10px;width:100%" data-si="ga_${si}" data-idx="${i}" onchange="updateBonusQuestion(this.dataset.si,this.dataset.idx,this.value)">
+      </div>
+      <div class="form-group" style="margin-bottom:8px"><label>נקודות</label>
+        <input type="number" value="${b.points}" min="0.5" step="0.5" style="background:var(--dark);border:1.5px solid rgba(255,215,0,0.3);border-radius:7px;color:var(--text);font-family:'Heebo',sans-serif;font-size:0.84rem;padding:7px 10px;width:100px" data-si="ga_${si}" data-idx="${i}" onchange="updateBonusPoints(this.dataset.si,this.dataset.idx,this.value)">
+      </div>
+      <label style="font-size:0.78rem;color:var(--text2);font-weight:600;display:block;margin-bottom:6px">תשובות אפשריות</label>
+      <div class="bonus-answers">${ansHtml}</div>
+      <button class="btn-ghost" style="margin-top:8px;font-size:0.78rem" onclick="gaAddBonusAnswer(${i})">➕ הוסף תשובה</button>
+    </div>`;
+  }).join('');
+  list.insertAdjacentHTML('beforeend',`<button class="btn btn-primary" style="margin-top:10px" onclick="gaSaveBonusBets()">💾 שמור הימורי בונוס</button>`);
+}
+window.gaRenderBonusAdmin=gaRenderBonusAdmin;
+function gaGetSi(){const r=document.getElementById('gaBonusStageSelect')?.value;return r==='0b'?'0b':parseInt(r);}
+function gaAddBonusBet(){const si=gaGetSi();if(!bonusBetDraft['ga_'+si])bonusBetDraft['ga_'+si]=[];bonusBetDraft['ga_'+si].push({id:'b'+Date.now(),question:'',points:1,answers:['',''],seriesKey:''});gaRenderBonusAdmin();}
+function gaRemoveBonusBet(i){const si=gaGetSi();bonusBetDraft['ga_'+si].splice(i,1);gaRenderBonusAdmin();}
+function gaAddBonusAnswer(i){const si=gaGetSi();bonusBetDraft['ga_'+si][i].answers.push('');gaRenderBonusAdmin();}
+function gaRemoveBonusAnswer(i,ai){const si=gaGetSi();bonusBetDraft['ga_'+si][i].answers.splice(ai,1);gaRenderBonusAdmin();}
+window.gaAddBonusBet=gaAddBonusBet;window.gaRemoveBonusBet=gaRemoveBonusBet;window.gaAddBonusAnswer=gaAddBonusAnswer;window.gaRemoveBonusAnswer=gaRemoveBonusAnswer;
+async function gaSaveBonusBets(){
+  const si=gaGetSi();
+  const bonuses=bonusBetDraft['ga_'+si]||[];
+  const bKey=getBonusStageKey(si);
+  await setDoc(doc(db,'global','settings'),{bonusBets:{[bKey]:bonuses}},{merge:true});
+  toast('✅ הימורי בונוס נשמרו!');
+}
+window.gaSaveBonusBets=gaSaveBonusBets;
+function gaRenderAutoLockList(){
+  const locks=getGlobal('autoLocks',{});
+  const list=document.getElementById('gaAutoLockList');
+  if(!list)return;
+  const entries=Object.entries(locks);
+  if(!entries.length){list.innerHTML='<div style="color:var(--text2);font-size:0.78rem">אין נעילות אוטומטיות</div>';return;}
+  list.innerHTML=entries.map(([key,ts])=>{
+    let name='';
+    if(key.startsWith('series_')){const parts=key.split('_');const si=parseInt(parts[1]);const mk=parts[2];const t=getTeams(si,mk);name='🏀 '+(t.home&&t.away?`${t.home} מול ${t.away}`:mk);}
+    else{const normKey=key==='0b'?'0b':parseInt(key);name=STAGE_NAMES[STAGE_KEYS.indexOf(normKey)]||key;}
+    const d=new Date(ts);const now=Date.now();
+    let locked=false;
+    if(key.startsWith('series_')){const parts=key.split('_');locked=isSeriesLocked(parseInt(parts[1]),parts[2]);}
+    else{const normKey=key==='0b'?'0b':parseInt(key);locked=(getGlobal('stageLocked',[]))[STAGE_KEYS.indexOf(normKey)]||false;}
+    const status=locked?'<span style="color:var(--green);font-size:0.7rem">✅</span>':ts<now?'<span style="color:var(--red);font-size:0.7rem">⚡</span>':'<span style="color:var(--gold);font-size:0.7rem">⏳</span>';
+    return`<div style="display:flex;align-items:center;justify-content:space-between;background:var(--dark);border-radius:8px;padding:7px 10px;margin-bottom:6px;font-size:0.8rem;">
+      <span style="font-weight:700">${name}</span><span style="color:var(--text2)">${d.toLocaleString('he-IL')}</span>${status}
+      <button onclick="removeAutoLock('${key}')" style="background:transparent;border:none;color:var(--red);cursor:pointer;font-size:0.8rem;padding:0 4px">✕</button>
+    </div>`;
+  }).join('');
+}
+window.gaRenderAutoLockList=gaRenderAutoLockList;
+function updateAutoLockTargetsGA(){
+  const type=document.getElementById('gaAutoLockType').value;
+  const sel=document.getElementById('gaAutoLockTarget');
+  if(type==='stage'){sel.innerHTML=`<option value="0">פליי-אין א</option><option value="0b">פליי-אין גמר</option><option value="1">סיבוב ראשון</option><option value="2">סיבוב שני</option><option value="3">גמר איזורי</option><option value="4">גמר NBA</option>`;}
+  else{const opts=[];for(const si of [1,2,3,4]){for(const m of STAGE_MATCHES[si]||[]){const t=getTeams(si,m.key);const lbl=t.home&&t.away?`${t.home} מול ${t.away}`:m.label;opts.push(`<option value="series_${si}_${m.key}">${STAGE_SHORT[STAGE_KEYS.indexOf(si)]}: ${lbl}</option>`);}}sel.innerHTML=opts.join('');}
+}
+window.updateAutoLockTargetsGA=updateAutoLockTargetsGA;
+async function gaAddAutoLock(){
+  const lockType=document.getElementById('gaAutoLockType').value;
+  const targetVal=document.getElementById('gaAutoLockTarget').value;
+  const timeVal=document.getElementById('gaAutoLockTime').value;
+  if(!timeVal){toast('⚠️ בחר תאריך ושעה');return;}
+  const ts=new Date(timeVal).getTime();
+  if(ts<=Date.now()){toast('⚠️ הזמן חייב להיות בעתיד');return;}
+  const curLocks=getGlobal('autoLocks',{});
+  await setDoc(doc(db,'global','settings'),{autoLocks:{...curLocks,[targetVal]:ts}},{merge:true});
+  document.getElementById('gaAutoLockTime').value='';
+  toast('✅ נעילה אוטומטית נקבעה!');gaRenderAutoLockList();
+}
+window.gaAddAutoLock=gaAddAutoLock;
+function sendReminderEmailGA(){
+  const link=`${location.origin}${location.pathname}`;
+  const cs=getGlobal('currentStage',0);
+  const stageName=STAGE_NAMES[STAGE_KEYS.indexOf(cs)]||'';
+  const subject=encodeURIComponent(`תזכורת: הזן הימורים — ${stageName}`);
+  const body=encodeURIComponent(`שלום,
+
+תזכורת להזין את הימוריך עבור ${stageName}.
+
+כניסה לאתר:
+${link}
+
+בהצלחה!`);
+  window.open(`mailto:?subject=${subject}&body=${body}`);
+}
+window.sendReminderEmailGA=sendReminderEmailGA;
+
 function showProfile(){
   showPage('page-profile');
   document.getElementById('profileName').value=currentUserDoc?.displayName||'';
@@ -793,7 +1201,6 @@ function goHome(){
 }
 function updateMenuForLeague(inLeague,isAdmin=false){
   ['menuLeaderboard','menuEnterBets','menuViewBets'].forEach(id=>document.getElementById(id).style.display=inLeague?'':'none');
-  document.getElementById('menuAdmin').style.display=(inLeague&&isAdmin)?'':'none';
 }
 
 // ── LEAGUES ──
@@ -903,8 +1310,8 @@ function renderLeaguePage(){
 
 // ── LEAGUE TABS ──
 function showLeagueTab(tab){
-  ['leaderboard','bets','enter-bets','prebets','admin'].forEach(t=>{const el=document.getElementById('ltab-'+t);if(el)el.style.display=t===tab?'':'none';});
-  document.querySelectorAll('#leagueNavTabs .nav-tab').forEach((b,i)=>b.classList.toggle('active',['leaderboard','bets','enter-bets','prebets','admin'][i]===tab));
+  ['leaderboard','bets','enter-bets','prebets'].forEach(t=>{const el=document.getElementById('ltab-'+t);if(el)el.style.display=t===tab?'':'none';});
+  document.querySelectorAll('#leagueNavTabs .nav-tab').forEach((b,i)=>b.classList.toggle('active',['leaderboard','bets','enter-bets','prebets'][i]===tab));
   if(tab==='leaderboard')renderLeaderboard();
   if(tab==='bets'){renderViewStageTabs();const ci=currentLeagueData.currentStage;viewStage(ci>0?STAGE_KEYS[Math.max(0,STAGE_KEYS.indexOf(ci)-1)]:0);}
   if(tab==='enter-bets')renderBetForm();
@@ -1213,18 +1620,21 @@ function renderBetForm(){
   if(si===0||si==='0b'){
     html+='<div class="card-title" style="margin-bottom:10px">🎯 בחר מנצחת</div>';
     for(const m of matches){
-      let t1,t2,lbl;
+      let t1,t2,lbl,subLabel='';
       if(si==='0b'){
-        // Auto-compute from stage0 results
         const ft=getPlayinFinalTeams(m.conf);
         t1=ft.home; t2=ft.away;
         lbl=m.label;
+        subLabel=m.conf==='east'?'מזרח: מקום 7 מול 8 (מפסיד) נגד מקום 9 מול 10 (מנצח)':'מערב: מקום 7 מול 8 (מפסיד) נגד מקום 9 מול 10 (מנצח)';
       } else {
         const t=getTeams(si,m.key);
         t1=t.home||'קבוצה 1'; t2=t.away||'קבוצה 2';
         lbl=t.home&&t.away?`${t1} מול ${t2}`:m.label;
+        // Add position label for stage 0
+        const posMap={e78:'מזרח: מקום 7 מול מקום 8',e910:'מזרח: מקום 9 מול מקום 10',w78:'מערב: מקום 7 מול מקום 8',w910:'מערב: מקום 9 מול מקום 10'};
+        subLabel=posMap[m.key]||'';
       }
-      html+=`<div class="playin-card"><div class="match-label">🏀 ${lbl}</div>
+      html+=`<div class="playin-card">${subLabel?`<div style="font-size:0.72rem;color:var(--text2);text-align:center;margin-bottom:4px">${subLabel}</div>`:''}<div class="match-label">🏀 ${lbl}</div>
         <div class="team-btns">
           <button class="team-btn" id="pb_${m.key}_0" data-mk="${m.key}" data-si="${si}" onclick="pickPlayin(this.dataset.mk,this.textContent.trim(),this.dataset.si)">${t1||'?'}</button>
           <button class="team-btn" id="pb_${m.key}_1" data-mk="${m.key}" data-si="${si}" onclick="pickPlayin(this.dataset.mk,this.textContent.trim(),this.dataset.si)">${t2||'?'}</button>
