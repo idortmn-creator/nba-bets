@@ -1233,7 +1233,7 @@ function renderBetForm(){
     }
   } // end else bonusLocked
   } // end if bonuses.length
-  html+=`<div style="margin-top:16px;display:flex;gap:9px;"><button class="btn btn-primary" style="width:auto" onclick="saveBet(this.dataset.si)" data-si="${si}">💾 שמור הימורים</button><button class="btn btn-secondary btn-sm" onclick="CBD={};document.querySelectorAll('.bet-opt,.team-btn,.bonus-opt').forEach(b=>b.classList.remove('sel-home','sel-away','selected','sel-bonus'))">🔄 נקה</button></div>`;
+  html+=`<div style="margin-top:16px;display:flex;gap:9px;"><button class="btn btn-primary" style="width:auto" onclick="saveBet(this.dataset.si)" data-si="${si}">💾 שמור הימורים</button><button class="btn btn-secondary btn-sm" onclick="clearBets(this.dataset.si)" data-si="${si}">🔄 נקה ושמור</button></div>`;
   content.innerHTML=html;
   // Load existing
   const existing=((currentLeagueData?.bets||{})[currentUser.uid]||{})['stage'+si]||{};
@@ -1274,6 +1274,15 @@ function pickBonus(bonusId,val){
   CBD['bonus_'+bonusId]=val;
   document.querySelectorAll(`[id^="bopt_${bonusId}_"]`).forEach(b=>b.classList.toggle('selected',b.getAttribute('data-val')===val));
 }
+
+async function clearBets(si){
+  if(si!=='0b')si=isNaN(parseInt(si))?si:parseInt(si);
+  CBD={};
+  document.querySelectorAll('.bet-opt,.team-btn,.bonus-opt').forEach(b=>b.classList.remove('sel-home','sel-away','selected','sel-bonus'));
+  await updateDoc(doc(db,'leagues',currentLeague),{[`bets.${currentUser.uid}.stage${si}`]:null});
+  toast('✅ הימורים נוקו!');
+}
+window.clearBets=clearBets;
 
 async function saveBet(si){
   if(si!=='0b')si=isNaN(parseInt(si))?si:parseInt(si);
