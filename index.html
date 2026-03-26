@@ -253,6 +253,37 @@ header{background:linear-gradient(135deg,var(--dark2),var(--dark3));border-botto
   </div>
 </div>
 
+<!-- PROFILE -->
+      <div id="page-profile" class="page">
+        <div style="max-width:480px;margin:0 auto;padding:24px 0">
+          <button class="btn btn-secondary btn-sm" onclick="showPage('page-home')" style="margin-bottom:18px">← חזור</button>
+          <div class="card">
+            <div class="card-title">👤 פרופיל</div>
+            <div class="form-group">
+              <label>שם מלא</label>
+              <input type="text" id="profileName" placeholder="שם מלא...">
+            </div>
+            <div class="form-group">
+              <label>שם משתמש</label>
+              <input type="text" id="profileUsername" placeholder="שם משתמש...">
+            </div>
+            <button class="btn btn-primary" onclick="saveProfile()" style="margin-top:4px">💾 שמור שינויים</button>
+          </div>
+          <div class="card" style="margin-top:16px">
+            <div class="card-title">🔑 שינוי סיסמה</div>
+            <div class="form-group">
+              <label>סיסמה חדשה</label>
+              <input type="password" id="profileNewPass" placeholder="לפחות 6 תווים...">
+            </div>
+            <div class="form-group">
+              <label>אימות סיסמה</label>
+              <input type="password" id="profileConfirmPass" placeholder="הכנס שוב...">
+            </div>
+            <button class="btn btn-secondary" onclick="changePassword()" style="margin-top:4px">🔑 שנה סיסמה</button>
+          </div>
+        </div>
+      </div>
+
 <!-- HOME -->
 <div id="page-home" class="page">
   <div class="section-header"><div class="section-title">שלום, <span id="homeUsername" style="color:var(--orange)"></span> 👋</div></div>
@@ -437,6 +468,12 @@ header{background:linear-gradient(135deg,var(--dark2),var(--dark3));border-botto
         </select>
       </div>
       <div id="resultFormContent"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📧 שליחת תזכורת</div>
+      <div style="color:var(--text2);font-size:0.82rem;margin-bottom:10px">שלח מייל תזכורת לכל המשתתפים להזין הימורים</div>
+      <button class="btn btn-secondary btn-sm" onclick="sendReminderEmail()" style="background:rgba(79,195,247,0.1);border-color:rgba(79,195,247,0.3);color:var(--blue)">📧 פתח מייל תזכורת</button>
     </div>
 
     <div class="card">
