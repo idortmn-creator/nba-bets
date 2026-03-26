@@ -844,6 +844,16 @@ function renderGlobalAdmin(){
     <div class="card-title">📧 שליחת תזכורת</div>
     <div style="color:var(--text2);font-size:0.82rem;margin-bottom:10px">שלח מייל תזכורת לכל המשתתפים</div>
     <button class="btn btn-secondary btn-sm" onclick="sendReminderEmailGA()" style="background:rgba(79,195,247,0.1);border-color:rgba(79,195,247,0.3);color:var(--blue)">📧 פתח מייל תזכורת</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📡 תוצאות NBA חיות</div>
+    <div style="color:var(--text2);font-size:0.82rem;margin-bottom:10px">שלוף תוצאות ממשחקים שהסתיימו ולחץ להחיל</div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+      <input type="date" id="espnDatePicker" style="padding:7px 10px;background:var(--dark);border:1.5px solid var(--border);border-radius:7px;color:var(--text);font-family:'Heebo',sans-serif;font-size:0.82rem;">
+      <button class="btn btn-secondary btn-sm" onclick="fetchESPNScores()" style="background:rgba(79,195,247,0.1);border-color:rgba(79,195,247,0.3);color:var(--blue)">📡 שלוף תוצאות</button>
+    </div>
+    <div id="espnScoresList"><div style="color:var(--text2);font-size:0.82rem">בחר תאריך ולחץ שלוף</div></div>
   </div>`;
   
   content.innerHTML=html;
@@ -851,6 +861,9 @@ function renderGlobalAdmin(){
   gaRenderResultForm();
   gaRenderBonusAdmin();
   gaRenderAutoLockList();
+  // Set today's date in ESPN picker
+  const dp=document.getElementById('espnDatePicker');
+  if(dp){const today=new Date();const y=today.getFullYear();const m=String(today.getMonth()+1).padStart(2,'0');const d=String(today.getDate()).padStart(2,'0');dp.value=`${y}-${m}-${d}`;}
 }
 window.renderGlobalAdmin=renderGlobalAdmin;
 
@@ -1121,6 +1134,104 @@ async function gaAddAutoLock(){
   toast('✅ נעילה אוטומטית נקבעה!');gaRenderAutoLockList();
 }
 window.gaAddAutoLock=gaAddAutoLock;
+async function fetchESPNScores(){
+  const dp=document.getElementById('espnDatePicker');
+  const list=document.getElementById('espnScoresList');
+  if(!dp||!list)return;
+  const dateVal=dp.value.replace(/-/g,''); // YYYYMMDD
+  list.innerHTML='<div style="color:var(--text2);font-size:0.82rem">⏳ טוען...</div>';
+  
+  try{
+    // Use CORS proxy to access ESPN API
+    const url=`https://corsproxy.io/?${encodeURIComponent(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${dateVal}&limit=20`)}`;
+    const resp=await fetch(url);
+    if(!resp.ok)throw new Error('Failed to fetch');
+    const data=await resp.json();
+    const events=data.events||[];
+    
+    if(!events.length){list.innerHTML='<div style="color:var(--text2);font-size:0.82rem">אין משחקים בתאריך זה</div>';return;}
+    
+    // Filter completed games
+    const completed=events.filter(e=>{
+      const status=e.status?.type?.completed;
+      return status;
+    });
+    
+    if(!completed.length){list.innerHTML='<div style="color:var(--text2);font-size:0.82rem">אין משחקים שהסתיימו בתאריך זה</div>';return;}
+    
+    list.innerHTML=completed.map(e=>{
+      const comp=e.competitions?.[0];
+      if(!comp)return '';
+      const home=comp.competitors?.find(t=>t.homeAway==='home');
+      const away=comp.competitors?.find(t=>t.homeAway==='away');
+      if(!home||!away)return '';
+      const homeName=home.team?.displayName||home.team?.name||'';
+      const awayName=away.team?.displayName||away.team?.name||'';
+      const homeScore=parseInt(home.score)||0;
+      const awayScore=parseInt(away.score)||0;
+      const winner=homeScore>awayScore?homeName:awayName;
+      const loser=homeScore>awayScore?awayName:homeName;
+      const winScore=Math.max(homeScore,awayScore);
+      const loseScore=Math.min(homeScore,awayScore);
+      
+      // Check if playoff game
+      const isPlayoff=e.season?.type===3||comp.notes?.[0]?.headline?.includes('Game')||comp.series;
+      const seriesNote=comp.series?`סדרה: ${comp.series.summary||''}`:comp.notes?.[0]?.headline||'';
+      
+      return`<div style="background:var(--dark3);border-radius:10px;padding:12px;margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-size:0.78rem;color:var(--text2)">${seriesNote}</span>
+          <span style="font-size:0.7rem;color:var(--green)">✅ הסתיים</span>
+        </div>
+        <div style="font-weight:700;font-size:0.95rem;margin-bottom:4px">
+          🏆 <span style="color:var(--green)">${winner}</span> ניצחה
+        </div>
+        <div style="font-size:0.82rem;color:var(--text2);margin-bottom:8px">
+          ${homeName} ${homeScore} — ${awayName} ${awayScore}
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-secondary btn-sm" style="font-size:0.75rem"
+            onclick="applyESPNResult('${winner.replace(/'/g,"\'")}','${homeName.replace(/'/g,"\'")}','${awayName.replace(/'/g,"\'")}')">
+            ✅ החל תוצאה זו
+          </button>
+        </div>
+      </div>`;
+    }).join('');
+    
+  }catch(e){
+    list.innerHTML=`<div style="color:var(--red);font-size:0.82rem">❌ שגיאה: ${e.message}<br><span style="color:var(--text2)">ייתכן שיש בעיית CORS. נסה שוב.</span></div>`;
+  }
+}
+window.fetchESPNScores=fetchESPNScores;
+
+function applyESPNResult(winner,home,away){
+  // Find which result select matches these team names and apply
+  // Try to match by team name (partial match)
+  const allSelects=document.querySelectorAll('[id^="ga_res_"]');
+  let applied=false;
+  allSelects.forEach(sel=>{
+    if(sel.tagName!=='SELECT')return;
+    // Check options
+    for(const opt of sel.options){
+      if(!opt.value)continue;
+      const parts=opt.value.split('|');
+      const teamInOpt=parts[0].toLowerCase();
+      if(teamInOpt.includes(winner.toLowerCase().substring(0,5))||
+         winner.toLowerCase().includes(teamInOpt.substring(0,5))){
+        sel.value=opt.value;
+        applied=true;
+        break;
+      }
+    }
+  });
+  if(applied){toast('✅ תוצאה הוחלה! בדוק ושמור.');}
+  else{
+    // Fallback: show modal with winner name to manually match
+    toast(`🏆 המנצחת: ${winner} — בחר ידנית את הסדרה המתאימה`);
+  }
+}
+window.applyESPNResult=applyESPNResult;
+
 function sendReminderEmailGA(){
   const link=`${location.origin}${location.pathname}`;
   const cs=getGlobal('currentStage',0);
