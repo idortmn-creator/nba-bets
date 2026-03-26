@@ -376,8 +376,15 @@ header{background:linear-gradient(135deg,var(--dark2),var(--dark3));border-botto
         <div id="autoLockList" style="margin-bottom:10px"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
           <div>
-            <div style="font-size:0.75rem;color:var(--text2);margin-bottom:4px">שלב לנעילה</div>
-            <select id="autoLockStage" style="padding:7px 10px;background:var(--dark);border:1.5px solid var(--border);border-radius:7px;color:var(--text);font-family:'Heebo',sans-serif;font-size:0.82rem;">
+            <div style="font-size:0.75rem;color:var(--text2);margin-bottom:4px">סוג נעילה</div>
+            <select id="autoLockType" onchange="updateAutoLockTargets()" style="padding:7px 10px;background:var(--dark);border:1.5px solid var(--border);border-radius:7px;color:var(--text);font-family:'Heebo',sans-serif;font-size:0.82rem;">
+              <option value="stage">נעילת שלב</option>
+              <option value="series">נעילת סדרה</option>
+            </select>
+          </div>
+          <div>
+            <div style="font-size:0.75rem;color:var(--text2);margin-bottom:4px">יעד</div>
+            <select id="autoLockTarget" style="padding:7px 10px;background:var(--dark);border:1.5px solid var(--border);border-radius:7px;color:var(--text);font-family:'Heebo',sans-serif;font-size:0.82rem;">
               <option value="0">פליי-אין א</option><option value="0b">פליי-אין גמר</option>
               <option value="1">סיבוב ראשון</option><option value="2">סיבוב שני</option>
               <option value="3">גמר איזורי</option><option value="4">גמר NBA</option>
@@ -1655,32 +1662,72 @@ function renderAutoLockList(){
   if(!list)return;
   const entries=Object.entries(locks);
   if(!entries.length){list.innerHTML='<div style="color:var(--text2);font-size:0.78rem">אין נעילות אוטומטיות מוגדרות</div>';return;}
-  list.innerHTML=entries.map(([stageKey,ts])=>{
-    const stageName=STAGE_NAMES[STAGE_KEYS.indexOf(stageKey==='0b'?'0b':parseInt(stageKey))]||stageKey;
+  list.innerHTML=entries.map(([key,ts])=>{
+    let name='';
+    if(key.startsWith('series_')){
+      const parts=key.split('_');// series_1_e1
+      const si=parseInt(parts[1]);
+      const mk=parts[2];
+      const t=getTeams(si,mk);
+      name='🏀 '+(t.home&&t.away?`${t.home} מול ${t.away}`:mk);
+    } else {
+      const normKey=key==='0b'?'0b':parseInt(key);
+      name=STAGE_NAMES[STAGE_KEYS.indexOf(normKey)]||key;
+    }
     const d=new Date(ts);
-    const locked=(getGlobal('stageLocked',[]))[STAGE_KEYS.indexOf(stageKey==='0b'?'0b':parseInt(stageKey))]||false;
     const now=Date.now();
+    let locked=false;
+    if(key.startsWith('series_')){
+      const parts=key.split('_');locked=isSeriesLocked(parseInt(parts[1]),parts[2]);
+    } else {
+      const normKey=key==='0b'?'0b':parseInt(key);
+      locked=(getGlobal('stageLocked',[]))[STAGE_KEYS.indexOf(normKey)]||false;
+    }
     const status=locked?'<span style="color:var(--green);font-size:0.7rem">✅ ננעל</span>':
                  ts<now?'<span style="color:var(--red);font-size:0.7rem">⚡ פג תוקף</span>':
                  '<span style="color:var(--gold);font-size:0.7rem">⏳ ממתין</span>';
     return `<div style="display:flex;align-items:center;justify-content:space-between;background:var(--dark);border-radius:8px;padding:7px 10px;margin-bottom:6px;font-size:0.8rem;">
-      <span style="font-weight:700">${stageName}</span>
+      <span style="font-weight:700">${name}</span>
       <span style="color:var(--text2)">${d.toLocaleString('he-IL')}</span>
       ${status}
-      <button onclick="removeAutoLock('${stageKey}')" style="background:transparent;border:none;color:var(--red);cursor:pointer;font-size:0.8rem;padding:0 4px">✕</button>
+      <button onclick="removeAutoLock('${key}')" style="background:transparent;border:none;color:var(--red);cursor:pointer;font-size:0.8rem;padding:0 4px">✕</button>
     </div>`;
   }).join('');
 }
 
+function updateAutoLockTargets(){
+  const type=document.getElementById('autoLockType').value;
+  const sel=document.getElementById('autoLockTarget');
+  if(type==='stage'){
+    sel.innerHTML=`<option value="0">פליי-אין א</option><option value="0b">פליי-אין גמר</option>
+      <option value="1">סיבוב ראשון</option><option value="2">סיבוב שני</option>
+      <option value="3">גמר איזורי</option><option value="4">גמר NBA</option>`;
+  } else {
+    // Build series list from all stages
+    const opts=[];
+    const seriesStages=[1,2,3,4];
+    for(const si of seriesStages){
+      for(const m of STAGE_MATCHES[si]||[]){
+        const t=getTeams(si,m.key);
+        const lbl=t.home&&t.away?`${t.home} מול ${t.away}`:m.label;
+        opts.push(`<option value="series_${si}_${m.key}">${STAGE_SHORT[STAGE_KEYS.indexOf(si)]}: ${lbl}</option>`);
+      }
+    }
+    sel.innerHTML=opts.join('');
+  }
+}
+window.updateAutoLockTargets=updateAutoLockTargets;
+
 async function addAutoLock(){
-  const stageVal=document.getElementById('autoLockStage').value;
+  const lockType=document.getElementById('autoLockType').value;
+  const targetVal=document.getElementById('autoLockTarget').value;
   const timeVal=document.getElementById('autoLockTime').value;
   if(!timeVal){toast('⚠️ בחר תאריך ושעה');return;}
   const ts=new Date(timeVal).getTime();
   if(ts<=Date.now()){toast('⚠️ הזמן חייב להיות בעתיד');return;}
-  // Save as nested object to avoid flat key issue
+  const key=lockType==='series'?targetVal:targetVal; // series key: "series_1_e1", stage key: "0","1" etc
   const curLocks=getGlobal('autoLocks',{});
-  const newLocks={...curLocks,[stageVal]:ts};
+  const newLocks={...curLocks,[key]:ts};
   await setDoc(doc(db,'global','settings'),{autoLocks:newLocks},{merge:true});
   document.getElementById('autoLockTime').value='';
   toast('✅ נעילה אוטומטית נקבעה!');
@@ -1708,12 +1755,25 @@ function startAutoLockChecker(){
     for(const [stageKey,ts] of Object.entries(locks)){
       const tsNum=typeof ts==='number'?ts:(ts?.seconds?ts.seconds*1000:0);
       if(tsNum>0&&tsNum<=now){
-        const normKey=stageKey==='0b'?'0b':parseInt(stageKey);
-        const idx=STAGE_KEYS.indexOf(normKey);
-        if(idx>=0&&!stageLocked[idx]){
-          stageLocked[idx]=true;
-          changed=true;
-          console.log('Auto-locking stage',stageKey,'at',new Date(tsNum).toLocaleString());
+        if(stageKey.startsWith('series_')){
+          // Series lock
+          const parts=stageKey.split('_');
+          const si=parseInt(parts[1]);const mk=parts[2];
+          if(!isSeriesLocked(si,mk)){
+            const curSL=getGlobal('seriesLocked',{});
+            await setDoc(doc(db,'global','settings'),{seriesLocked:{...curSL,[si+'_'+mk]:true}},{merge:true});
+            changed=false; // already saved
+            toast('⏰ סדרה ננעלה אוטומטית!');
+            console.log('Auto-locking series',si,mk);
+          }
+        } else {
+          const normKey=stageKey==='0b'?'0b':parseInt(stageKey);
+          const idx=STAGE_KEYS.indexOf(normKey);
+          if(idx>=0&&!stageLocked[idx]){
+            stageLocked[idx]=true;
+            changed=true;
+            console.log('Auto-locking stage',stageKey,'at',new Date(tsNum).toLocaleString());
+          }
         }
       }
     }
