@@ -1,0 +1,30 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+
+      # 1. Checkout the repo
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2. Deploy to GitHub Pages
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: .
+          publish_branch: gh-pages
+
+      # 3. Deploy Firestore Security Rules to Firebase
+      - name: Deploy Firestore Rules
+        uses: w9jds/firebase-action@master
+        with:
+          args: deploy --only firestore:rules --project nba-bets-2026
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
