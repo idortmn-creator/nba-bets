@@ -949,6 +949,17 @@ let globalUnsubscribe=null;
 let globalData={};
 function getGlobal(field,fallback){return globalData[field]!==undefined?globalData[field]:fallback;}
 
+// Wait until globalData is populated before rendering
+function waitForGlobalData(){
+  if(Object.keys(globalData).length>0)return Promise.resolve();
+  return new Promise(resolve=>{
+    const check=setInterval(()=>{
+      if(Object.keys(globalData).length>0){clearInterval(check);resolve();}
+    },50);
+    setTimeout(()=>{clearInterval(check);resolve();},4000);
+  });
+}
+
 async function openLeague(lid,pushHash=true){
   if(pushHash)setHash('#league/'+lid);
   showPage('page-league');
@@ -972,7 +983,9 @@ async function openLeague(lid,pushHash=true){
     renderLeaguePage();
   });
 }
-function renderLeaguePage(){
+async function renderLeaguePage(){
+  // Always wait for globalData before rendering — fixes missing team names for members
+  await waitForGlobalData();
   const ld=currentLeagueData;
   document.getElementById('leaguePageTitle').textContent=ld.name;
   document.getElementById('leaguePageCode').textContent=ld.code;
@@ -984,7 +997,6 @@ function renderLeaguePage(){
   if(activeTab==='leaderboard'||!activeTab){
     showLeagueTab('leaderboard');
   } else {
-    // Re-render leaderboard silently in background even on other tabs
     renderLeaderboard();
   }
 }
@@ -1187,7 +1199,8 @@ function renderViewStageTabs(){
     return `<button class="stage-tab ${i===0?'active':''}" onclick="viewStage(${kStr})">${s}</button>`;
   }).join('');
 }
-function viewStage(idx){
+async function viewStage(idx){
+  await waitForGlobalData();
   const idxStr=String(idx);
   document.querySelectorAll('.stage-tab').forEach((t,i)=>t.classList.toggle('active',String(STAGE_KEYS[i])===idxStr));
   // Normalize idx - could be number or string '0b'
@@ -1280,7 +1293,8 @@ function viewStage(idx){
 }
 
 // ── BET FORM ──
-function renderBetForm(){
+async function renderBetForm(){
+  await waitForGlobalData();
   const siRaw=document.getElementById('betStageSelect').value;
   const si=siRaw==='0b'?'0b':parseInt(siRaw);
   const siIdx=STAGE_KEYS.indexOf(si);
