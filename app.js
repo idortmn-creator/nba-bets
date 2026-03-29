@@ -200,10 +200,13 @@ onAuthStateChanged(auth, async user=>{
         globalUnsubscribe=onSnapshot(doc(db,'global','settings'),snap=>{
           globalData=snap.exists()?snap.data():{};
           resolve(); // resolve on first load
-          // Re-render current league page if open
+          // Re-render leaderboard in real-time when global data changes
+          // (results entered, stage locked, etc.)
           if(currentLeagueData){
             const activePage=document.querySelector('.page.active');
-            if(activePage&&activePage.id==='page-league')renderLeaguePage();
+            if(activePage&&activePage.id==='page-league'){
+              renderLeaderboard();
+            }
           }
         });
       });
@@ -974,7 +977,16 @@ function renderLeaguePage(){
   document.getElementById('leaguePageTitle').textContent=ld.name;
   document.getElementById('leaguePageCode').textContent=ld.code;
   updateMenuForLeague(true,false);
-  showLeagueTab('leaderboard');
+  // Find which tab is currently active and re-render it
+  // so real-time updates work on any tab, not just leaderboard
+  const activeTabs=['leaderboard','bets','enter-bets','prebets','admin'];
+  const activeTab=activeTabs.find(t=>{const el=document.getElementById('ltab-'+t);return el&&el.style.display!=='none';});
+  if(activeTab==='leaderboard'||!activeTab){
+    showLeagueTab('leaderboard');
+  } else {
+    // Re-render leaderboard silently in background even on other tabs
+    renderLeaderboard();
+  }
 }
 
 // ── LEAGUE TABS ──
