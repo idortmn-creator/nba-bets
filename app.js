@@ -879,8 +879,14 @@ async function handleRoute(){
 }
 
 window.addEventListener('popstate',handleRoute);
-function updateMenuForLeague(inLeague,isAdmin=false){
+function updateMenuForLeague(inLeague){
   ['menuLeaderboard','menuEnterBets','menuViewBets'].forEach(id=>document.getElementById(id).style.display=inLeague?'':'none');
+  // Admin tab in league — only visible to Super Admin
+  const adminTabBtn=document.getElementById('adminTabBtn');
+  if(adminTabBtn)adminTabBtn.style.display=(inLeague&&isSuperAdmin())?'':'none';
+  // Admin menu item — only visible to Super Admin
+  const menuAdmin=document.getElementById('menuAdmin');
+  if(menuAdmin)menuAdmin.style.display=(inLeague&&isSuperAdmin())?'':'none';
 }
 
 // ── LEAGUES ──
@@ -989,7 +995,7 @@ async function renderLeaguePage(){
   const ld=currentLeagueData;
   document.getElementById('leaguePageTitle').textContent=ld.name;
   document.getElementById('leaguePageCode').textContent=ld.code;
-  updateMenuForLeague(true,false);
+  updateMenuForLeague(true);
   // Find which tab is currently active and re-render it
   // so real-time updates work on any tab, not just leaderboard
   const activeTabs=['leaderboard','bets','enter-bets','prebets','admin'];
@@ -1594,6 +1600,9 @@ function renderAdmin(){
   const _locked=getGlobal('stageLocked',[false,false,false,false,false,false]);
   const _curIdx=STAGE_KEYS.indexOf(getGlobal('currentStage',0));
   document.getElementById('adminCurrentStage').textContent=(STAGE_NAMES[_curIdx]||'')+(_locked[_curIdx]?' 🔒':' 🟢');
+  // Show/hide Super Admin only controls (stage lock, stage update)
+  const superAdminControls=document.querySelectorAll('.super-admin-only');
+  superAdminControls.forEach(el=>el.style.display=isSuperAdmin()?'':'none');
   const statusEl=document.getElementById('allStageLockStatus');
   if(statusEl){
     statusEl.innerHTML=STAGE_SHORT.map((s,i)=>{
@@ -1904,12 +1913,16 @@ async function setCurrentStage(){
   const sv=document.getElementById('adminStageSelect').value;
   const s=sv==='0b'?'0b':parseInt(sv);
   const updates={currentStage:s};
-  // Initialize stageLocked if not set
   if(!globalData.stageLocked){
     updates.stageLocked=[false,false,false,false,false,false];
   }
-  await setDoc(doc(db,'global','settings'),updates,{merge:true});
-  toast('✅ שלב עודכן בכל הליגות!');
+  try{
+    await setDoc(doc(db,'global','settings'),updates,{merge:true});
+    toast('✅ שלב עודכן!');
+  }catch(e){
+    console.error('setCurrentStage error:',e);
+    toast('❌ שגיאה: אין הרשאה לעדכן שלב. רק Super Admin יכול.');
+  }
 }
 async function toggleSeriesLock(si,mk){
   if(si!=='0b')si=isNaN(parseInt(si))?si:parseInt(si);
@@ -1936,8 +1949,13 @@ async function toggleStageLock(){
   const newLocked=[...currentLocked];
   while(newLocked.length<6)newLocked.push(false);
   newLocked[sIdx]=!newLocked[sIdx];
-  await setDoc(doc(db,'global','settings'),{stageLocked:newLocked},{merge:true});
-  toast(newLocked[sIdx]?'🔒 שלב ננעל בכל הליגות':'🔓 שלב נפתח בכל הליגות');
+  try{
+    await setDoc(doc(db,'global','settings'),{stageLocked:newLocked},{merge:true});
+    toast(newLocked[sIdx]?'🔒 שלב ננעל':'🔓 שלב נפתח');
+  }catch(e){
+    console.error('toggleStageLock error:',e);
+    toast('❌ שגיאה: אין הרשאה לנעול שלב. רק Super Admin יכול.');
+  }
 }
 
 // ── UTILS ──
