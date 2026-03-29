@@ -164,6 +164,33 @@ window.closeMenuAnd=closeMenuAnd;
 window.showNextBonus=showNextBonus;
 window.addAutoLock=addAutoLock;
 window.removeAutoLock=removeAutoLock;
+// ── GA* (Global Admin) functions ──
+window.gaSetCurrentStage=gaSetCurrentStage;
+window.gaToggleStageLock=gaToggleStageLock;
+window.gaRenderTeamSetup=gaRenderTeamSetup;
+window.gaSaveTeamSetup=gaSaveTeamSetup;
+window.gaRenderResultForm=gaRenderResultForm;
+window.gaSaveResults=gaSaveResults;
+window.gaRenderBonusAdmin=gaRenderBonusAdmin;
+window.gaAddBonusBet=gaAddBonusBet;
+window.gaRemoveBonusBet=gaRemoveBonusBet;
+window.gaAddBonusAnswer=gaAddBonusAnswer;
+window.gaRemoveBonusAnswer=gaRemoveBonusAnswer;
+window.gaSaveBonusBets=gaSaveBonusBets;
+window.gaRenderAutoLockList=gaRenderAutoLockList;
+window.gaAddAutoLock=gaAddAutoLock;
+window.openGlobalAdmin=openGlobalAdmin;
+window.renderGlobalAdmin=renderGlobalAdmin;
+window.updateAutoLockTargetsGA=updateAutoLockTargetsGA;
+window.fetchESPNScores=fetchESPNScores;
+window.applyESPNResult=applyESPNResult;
+window.sendReminderEmailGA=sendReminderEmailGA;
+window.showProfile=showProfile;
+window.saveProfile=saveProfile;
+window.changePassword=changePassword;
+window.autoFillBets=autoFillBets;
+window.clearBets=clearBets;
+window.toggleSeriesLock=toggleSeriesLock;
 window._fbReady=true;
 // Trigger pending calls
 if(window._pendingCalls){window._pendingCalls.forEach(fn=>fn());window._pendingCalls=[];}
