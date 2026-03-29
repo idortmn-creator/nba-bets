@@ -3,7 +3,8 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
          sendEmailVerification, sendPasswordResetEmail, onAuthStateChanged, signOut as fbSignOut,
          updateProfile } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query,
-         where, getDocs, arrayUnion, serverTimestamp, onSnapshot, deleteField }
+         where, getDocs, arrayUnion, serverTimestamp, onSnapshot, deleteField,
+         enableIndexedDbPersistence }
   from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
 // Mark Firebase as ready
@@ -22,6 +23,12 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+
+// Enable offline persistence — data cached locally, loads instantly on revisit
+enableIndexedDbPersistence(db).catch(err=>{
+  if(err.code==='failed-precondition'){console.warn('Offline persistence: multiple tabs open');}
+  else if(err.code==='unimplemented'){console.warn('Offline persistence: browser not supported');}
+});
 
 let currentUser=null,currentUserDoc=null,currentLeague=null,currentLeagueData=null,leagueUnsubscribe=null,CBD={};
 // bonusBetDraft: temp storage while admin edits bonus bets
