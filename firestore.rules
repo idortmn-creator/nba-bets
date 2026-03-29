@@ -99,18 +99,14 @@ service cloud.firestore {
           // ① Super admin can do anything
           isSuperAdmin()
 
-          // ② League admin can manage the league
-          // (stage, locks, teams, results, bonuses, members, memberInfo)
-          || isLeagueAdmin(resource.data)
-
-          // ③ A member (including the admin) can write their own bets
+          // ② Any authenticated member can write their own bets
           // and update their own memberInfo entry.
-          // Crucially they CANNOT change: adminUid, members list (except
-          // joining — handled below), results, teams, stage locks.
+          // Nobody else (not even league admin) can change:
+          // results, teams, bonusBets, stage locks, adminUid.
           || (isLeagueMember(resource.data)
               && onlyMemberWritableFields())
 
-          // ④ A non-member (joining) may add themselves to members[]
+          // ③ A non-member (joining) may add themselves to members[]
           // and write their memberInfo entry — nothing else.
           || isJoiningLeague()
       );
