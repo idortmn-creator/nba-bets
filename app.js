@@ -201,7 +201,11 @@ onAuthStateChanged(auth, async user=>{
         });
       });
     }
-    if(code){await autoJoinLeague(code);}else{goHome();}
+    if(code){await autoJoinLeague(code);}else{
+      const hash=location.hash;
+      if(hash&&hash.startsWith('#league/')){await handleRoute();}
+      else{goHome();}
+    }
   } else {
     currentUser=null;currentUserDoc=null;
     document.getElementById('mainHeader').style.display='none';
@@ -826,20 +830,45 @@ async function doSignOut(){
   await fbSignOut(auth);
 }
 
-// ── NAV ──
-function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById(id).classList.add('active');}
+// ── NAV + HASH ROUTING ──
+function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById(id)?.classList.add('active');}
+
+function setHash(hash,push=true){
+  if(push){history.pushState(null,'',hash);}
+  else{history.replaceState(null,'',hash);}
+}
+
 function goHome(){
   if(leagueUnsubscribe){leagueUnsubscribe();leagueUnsubscribe=null;}
   currentLeague=null;currentLeagueData=null;
   updateMenuForLeague(false);
   document.getElementById('homeUsername').textContent=currentUserDoc?.username||'';
-  // Show admin button if super admin
   if(isSuperAdmin()){
     const saBtn=document.getElementById('superAdminHomeBtn');
     if(saBtn)saBtn.style.display='';
   }
+  setHash('#home');
   showPage('page-home');
 }
+
+async function handleRoute(){
+  if(!currentUser)return;
+  const hash=location.hash||'#home';
+  if(hash==='#home'||hash===''){
+    if(leagueUnsubscribe){leagueUnsubscribe();leagueUnsubscribe=null;}
+    currentLeague=null;currentLeagueData=null;
+    updateMenuForLeague(false);
+    document.getElementById('homeUsername').textContent=currentUserDoc?.username||'';
+    showPage('page-home');
+  } else if(hash.startsWith('#league/')){
+    const lid=hash.replace('#league/','');
+    if(lid&&lid!==currentLeague){await openLeague(lid,false);}
+  } else if(hash==='#leagues'){
+    loadMyLeagues();
+  }
+}
+
+window.addEventListener('popstate',handleRoute);
 function updateMenuForLeague(inLeague,isAdmin=false){
   ['menuLeaderboard','menuEnterBets','menuViewBets'].forEach(id=>document.getElementById(id).style.display=inLeague?'':'none');
 }
@@ -910,7 +939,8 @@ let globalUnsubscribe=null;
 let globalData={};
 function getGlobal(field,fallback){return globalData[field]!==undefined?globalData[field]:fallback;}
 
-async function openLeague(lid){
+async function openLeague(lid,pushHash=true){
+  if(pushHash)setHash('#league/'+lid);
   showPage('page-league');
   document.getElementById('leaderboardList').innerHTML='<div class="loader"><div class="spinner"></div></div>';
   if(leagueUnsubscribe)leagueUnsubscribe();
@@ -1540,7 +1570,8 @@ function renderAdmin(){
   }
   document.getElementById('adminStageSelect').value=getGlobal('currentStage',0);
   const link=`${location.origin}${location.pathname}?code=${ld.code}`;
-  document.getElementById('adminShareLink').value=link;
+  const directLink=`${location.origin}${location.pathname}#league/${currentLeague}`;
+  document.getElementById('adminShareLink').value=directLink;
   document.getElementById('adminLeagueCode').textContent=ld.code;
   renderAutoLockList();
 }
