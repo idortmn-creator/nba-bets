@@ -51,10 +51,11 @@ service cloud.firestore {
     //
     match /users/{uid} {
 
-      // Any authenticated user can read any user doc.
-      // (Needed to check username uniqueness on registration and
-      //  to load memberInfo — only public fields are stored.)
-      allow read: if isAuth();
+      // Any user (including unauthenticated) can read user docs.
+      // Needed for username uniqueness check during registration —
+      // the user is not yet signed in at that point.
+      // Safe: users collection only stores public display info (no secrets).
+      allow read: if true;
 
       // A user can only create their own document, and only with
       // the correct uid field. Super admin can create any.
