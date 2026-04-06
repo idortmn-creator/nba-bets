@@ -4,7 +4,7 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
          updateProfile } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query,
          where, getDocs, arrayUnion, serverTimestamp, onSnapshot, deleteField,
-         enableIndexedDbPersistence }
+         initializeFirestore, persistentLocalCache, persistentMultipleTabManager }
   from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
 // Mark Firebase as ready
@@ -22,12 +22,8 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app);
-
-// Enable offline persistence — data cached locally, loads instantly on revisit
-enableIndexedDbPersistence(db).catch(err=>{
-  if(err.code==='failed-precondition'){console.warn('Offline persistence: multiple tabs open');}
-  else if(err.code==='unimplemented'){console.warn('Offline persistence: browser not supported');}
+const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()})
 });
 
 let currentUser=null,currentUserDoc=null,currentLeague=null,currentLeagueData=null,leagueUnsubscribe=null,CBD={};
@@ -205,6 +201,7 @@ document.addEventListener('click',e=>{
 
 // ── AUTH STATE ──
 onAuthStateChanged(auth, async user=>{
+  if(_registering)return; // skip during registration flow — fbSignOut will re-trigger cleanly
   if(user){
     currentUser=user;
     const uSnap=await getDoc(doc(db,'users',user.uid));
@@ -264,6 +261,7 @@ async function doLogin(){
     if(!cred.user.emailVerified){await fbSignOut(auth);toast('📧 יש לאמת את האימייל תחילה');return;}
   }catch(e){toast('❌ '+(e.code==='auth/invalid-credential'?'אימייל או סיסמה שגויים':e.message));}
 }
+let _registering=false; // guard: prevents onAuthStateChanged from running mid-registration
 async function doRegister(){
   const name=document.getElementById('regName').value.trim();
   const username=document.getElementById('regUsername').value.trim().replace(/\s/g,'');
@@ -272,16 +270,19 @@ async function doRegister(){
   if(!name||!username||!email||!pw){toast('⚠️ מלא את כל השדות');return;}
   if(pw.length<6){toast('⚠️ סיסמה חייבת להיות לפחות 6 תווים');return;}
   try{
+    // Username uniqueness check — runs before sign-up (user is unauthenticated here)
     const uQ=await getDocs(query(collection(db,'users'),where('username','==',username)));
     if(!uQ.empty){toast('⚠️ שם המשתמש תפוס');return;}
+    _registering=true;
     const cred=await createUserWithEmailAndPassword(auth,email,pw);
     await updateProfile(cred.user,{displayName:name});
     await setDoc(doc(db,'users',cred.user.uid),{uid:cred.user.uid,displayName:name,username,email,createdAt:serverTimestamp()});
     await sendEmailVerification(cred.user);
     await fbSignOut(auth);
+    _registering=false;
     toast('📧 נשלח מייל אימות! אמת ואז התחבר');
     switchAuthTab('login');
-  }catch(e){toast('❌ '+(e.code==='auth/email-already-in-use'?'אימייל כבר קיים':e.message));}
+  }catch(e){_registering=false;toast('❌ '+(e.code==='auth/email-already-in-use'?'אימייל כבר קיים':e.message));}
 }
 async function doResetPassword(){
   const email=document.getElementById('loginEmail').value.trim();
