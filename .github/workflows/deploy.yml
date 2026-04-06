@@ -12,12 +12,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
+      - name: Deploy to Firebase Hosting
+        uses: w9jds/firebase-action@master
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: .
-          publish_branch: gh-pages
+          args: deploy --only hosting --project nba-bets-2026
+        env:
+          GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
       - name: Deploy Firestore Rules
         uses: w9jds/firebase-action@master
@@ -25,4 +25,3 @@ jobs:
           args: deploy --only firestore:rules --project nba-bets-2026
         env:
           GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-
