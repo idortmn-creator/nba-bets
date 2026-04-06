@@ -635,11 +635,15 @@ function gaRenderBonusAdmin(){
   if(!bsiRaw)return;
   const si=bsiRaw==='0b'?'0b':parseInt(bsiRaw);
   const bKey=getBonusStageKey(si);
-  const bonuses=getGlobal('bonusBets',{})[bKey]||[];
-  bonusBetDraft['ga_'+si]=JSON.parse(JSON.stringify(bonuses));
+  // Seed draft from Firestore only if not already in draft (first load)
+  if(!bonusBetDraft['ga_'+si]){
+    const saved=getGlobal('bonusBets',{})[bKey]||[];
+    bonusBetDraft['ga_'+si]=JSON.parse(JSON.stringify(saved));
+  }
+  const bonuses=bonusBetDraft['ga_'+si];
   const list=document.getElementById('gaBonusAdminList');
   if(!list)return;
-  if(!bonuses.length){list.innerHTML='<div style="color:var(--text2);font-size:0.82rem">אין הימורי בונוס</div>';return;}
+  if(!bonuses.length){list.innerHTML='<div style="color:var(--text2);font-size:0.82rem">אין הימורי בונוס — לחץ ➕ להוספה</div>';return;}
   // Build series options for this stage (same as per-league panel)
   const gaStageMatches=STAGE_MATCHES[si==='0b'?'0b':(typeof si==='number'?si:parseInt(si))]||[];
   list.innerHTML=bonuses.map((b,i)=>{
@@ -1766,15 +1770,17 @@ function updateBonusAnswer(si,i,ai,val){const key=si==='0b'?'0b':parseInt(si);if
 function renderBonusAdmin(){
   const bsiRaw=document.getElementById('bonusStageSelect').value;
   const si=bsiRaw==='0b'?'0b':parseInt(bsiRaw);
-  const bonuses=getBonusBets(si);
-  bonusBetDraft[si]=JSON.parse(JSON.stringify(bonuses)); // deep copy
+  // Seed draft from Firestore only on first load for this stage
+  if(!bonusBetDraft[si]){
+    bonusBetDraft[si]=JSON.parse(JSON.stringify(getBonusBets(si)));
+  }
   renderBonusAdminList(si);
 }
 
 function renderBonusAdminList(si){
   const bonuses=bonusBetDraft[si]||[];
   const list=document.getElementById('bonusAdminList');
-  if(!bonuses.length){list.innerHTML='<div style="color:var(--text2);font-size:0.82rem;padding:8px 0">אין הימורי בונוס לשלב זה</div>';return;}
+  if(!bonuses.length){list.innerHTML='<div style="color:var(--text2);font-size:0.82rem;padding:8px 0">אין הימורי בונוס לשלב זה — לחץ ➕ להוספה</div>';return;}
   list.innerHTML=bonuses.map((b,i)=>{
     const answers=b.answers||[];
     const ansHtml=answers.map((a,ai)=>`<div class="bonus-answer-row">
