@@ -113,7 +113,7 @@ header{background:linear-gradient(135deg,var(--dark2),var(--dark3));border-botto
 .bet-item:last-child{border-bottom:none;}
 .bet-label{color:var(--text2);flex:1;line-height:1.3;}
 .bet-value{font-weight:600;}
-.correct{color:#00e676;} .correct-exact{color:#00c853;font-weight:800;} .wrong{color:var(--red);} .pending{color:var(--text2);}
+.correct{color:#00e676;} .correct-exact{background:linear-gradient(135deg,#00c853,#00e676);color:#001a0a;font-weight:900;padding:2px 9px;border-radius:6px;box-shadow:0 0 8px rgba(0,200,83,0.5);} .wrong{color:var(--red);} .pending{color:var(--text2);}
 .series-not-started{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);gap:8px;}
 .series-not-started-label{font-size:0.82rem;color:var(--text2);font-weight:600;}
 .series-not-started-msg{font-size:0.78rem;color:var(--border);font-style:italic;}
