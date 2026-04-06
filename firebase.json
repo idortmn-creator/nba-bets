@@ -8,7 +8,8 @@
       "firebase.json",
       "firestore.rules",
       ".github/**",
-      "node_modules/**"
+      "node_modules/**",
+      "*.docx"
     ]
   }
 }
